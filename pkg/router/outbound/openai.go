@@ -61,6 +61,7 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 	if err != nil {
 		return nil, fmt.Errorf("can't mrashal the json bytes!")
 	}
+	// NOTE: here using ctx from client request. And after occure interruption, the connection that route connect to Pod can be cancel
 	forwardReq, err := http.NewRequestWithContext(ctx, http.MethodPost, useURI, bytes.NewReader(forwardBodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("can't create openai request!")
@@ -78,10 +79,19 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 
 	return forwardReq, nil
 }
-func (od *OpenAIOutBoundAdapter) HandleResponse(w http.ResponseWriter, resp *http.Response) {
+func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.ResponseWriter, resp *http.Response) {
 	defer resp.Body.Close()
 	// write header to response client
 	for k, v := range resp.Header {
+		if strings.EqualFold(k, "Transfer-Encoding") {
+			continue
+		}
+		if strings.EqualFold(k, "Connection") {
+			continue
+		}
+		if strings.EqualFold(k, "Keep-Alive") {
+			continue
+		}
 		w.Header()[k] = v
 	}
 	// return status code
@@ -94,6 +104,12 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(w http.ResponseWriter, resp *htt
 		}
 		buf := make([]byte, 4096)
 		for {
+			// avert client request interruptions,need using the request context
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			n, err := resp.Body.Read(buf) // 读取body
 			if n > 0 {
 				_, writeErr := w.Write(buf[:n])

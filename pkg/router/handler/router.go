@@ -84,8 +84,8 @@ func (r *Router) HandleFunc(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	// 转发请求
-	resp, err := r.forwarder.Do(req.Context(), backendRequest)
+	// 转发请求.不许要使用到客户端请求的上下文，是因为在构建转发请求时就已经使用
+	resp, err := r.forwarder.Do(backendRequest)
 	// 处理后端Pod返回的请求并转发回给客户端
-	outboundAdapter.HandleResponse(w, resp)
+	outboundAdapter.HandleResponse(req.Context(), w, resp)
 }

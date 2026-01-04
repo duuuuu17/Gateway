@@ -10,7 +10,7 @@ import (
 
 type OutboundAdapter interface {
 	BuildHTTPRequest(context.Context, *core.LLMRequest, config.ConfigReader) (*http.Request, error)
-	HandleResponse(http.ResponseWriter, *http.Response)
+	HandleResponse(context.Context, http.ResponseWriter, *http.Response)
 }
 
 // 所有outbound实例的注册仓库
