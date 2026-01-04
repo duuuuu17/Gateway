@@ -2,61 +2,42 @@ package main
 
 import (
 	"context"
+	"control-plane-model-test/pkg/config"
+	"control-plane-model-test/pkg/router/handler"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 )
 
-// var (
-//
-//	primaryBackend   = os.Getenv("PRIMARY_BACKEND")
-//	secondaryBackend = os.Getenv("SECONDARY_BACKEND")
-//	canaryRatio      = os.Getenv("CANARU_RATIO")
-//	enabledStreaming = os.Getenv("ENABLE_STREAMING") == "true"
-//	uriSuffix        = "/openai/v1/chat/completions"
-//
-// )
 var (
+	models           []string
+	Endpoints        []string
+	canaryRatio      float64
+	enabledStreaming bool
 	uriSuffix        = "/openai/v1/chat/completions"
-	primaryBackend   = "http://172.18.0.4:32337/"
-	secondaryBackend = "http://172.18.0.4:32337/"
-	canaryRatio      = "0.5"
-	enabledStreaming = true //false
 )
 
-func checkEnvs() bool {
-	if primaryBackend == "" {
-		fmt.Fprint(os.Stderr, "Env PRIMARY_BACKEND is null!\n And checks others env variables!")
-		return false
-	}
-	if secondaryBackend == "" {
-		fmt.Fprint(os.Stderr, "Env SECONDARY_BACKEND is null!\n And checks others env variables!")
-		return false
-	}
-	if canaryRatio == "" {
-		fmt.Fprint(os.Stderr, "Env CANARU_RATIO is null!\n And checks others env variables!")
-		return false
-	}
-	return true
+// func init() {
+// }
+func serverParameters(r []config.ConfigReader) {
+	models = r[0].GetConfig().Models
+	Endpoints = r[0].GetConfig().Endpoints
+	canaryRatio = r[0].GetConfig().CanaryRatio
+	enabledStreaming = r[0].GetConfig().EnabledStreaming
 }
 
 func pickBackend(r *rand.Rand) string {
-	ratio, err := strconv.ParseFloat(canaryRatio, 32)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Parse ratio to float error: %w", err)
-	}
-	if r.Float64() < ratio {
+
+	if r.Float64() < canaryRatio {
 		fmt.Println("choose secondary model!")
-		return secondaryBackend
+		return Endpoints[0]
 	}
 	fmt.Println("choose primary model!")
-	return primaryBackend
+	return Endpoints[1]
 }
 func chatHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("got the request")
@@ -119,7 +100,25 @@ func chatHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	path := "./config.yaml"
+	storage, err := config.Initialization(path)
+	if err != nil {
+		panic(err)
+	}
+
+	// 调用config模块进行主动初始化
+	loader := config.NewYAMLLoader(path)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// 启用监听
+	go config.WatchConfig(ctx, path, storage, loader)
+	storages := []config.ConfigReader{storage}
+	r := handler.InitialRouterModel(storages)
+	// 调试代码：start
+	serverParameters(r.GetConfigs())
+	fmt.Printf("load backend configuration: %+v", r.GetConfigs()[0].GetConfig())
+	// 调试代码：end
 	http.HandleFunc("/openai/v1/chat/completions", chatHandler)
-	log.Println("LLM Router listening on :8080")
+	// log.Println("LLM Router listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

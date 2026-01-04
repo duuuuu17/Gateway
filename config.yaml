@@ -1,0 +1,11 @@
+backend:
+  models:
+  - qwem2
+  - qwem2.5
+  protocol: "openai"
+  endpoints:
+  - "http://172.18.0.4:32337/"
+  - "http://172.18.0.4:32337/"
+  canaryRatio: 0.5
+features:
+  streaming: false

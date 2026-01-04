@@ -1,0 +1,23 @@
+package router
+
+// import "net/http"
+
+// type Parse interface {
+// 	Parse() (string, error)
+// }
+
+// type InboundAdapter interface {
+// 	Match(r *http.Request) bool
+// 	Parse(r *http.Request) (*LLMRequest, error)
+// }
+
+// Inbound Adapter:
+//     HTTP Request → LLMRequest
+
+// Outbound Adapter:
+//     LLMRequest → HTTP Request
+
+// type BackendAdapter interface {
+//     BuildRequest(ctx context.Context, req *LLMRequest) (*http.Request, error)
+//     HandleResponse(w http.ResponseWriter, resp *http.Response) error
+// }
