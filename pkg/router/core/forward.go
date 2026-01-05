@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -29,4 +30,10 @@ func NewHTTPForward() *HTTPForward {
 func (hf *HTTPForward) Do(req *http.Request) (*http.Response, error) {
 	// todo: using ctx print log/span
 	return hf.Client.Do(req)
+}
+
+func (hf *HTTPForward) TestDo(req *http.Request) (*http.Response, error) {
+	// todo: using ctx print log/span
+	fmt.Printf("HTTP Rquest:%+v ", req)
+	return nil, nil
 }

@@ -29,7 +29,7 @@ func buildOpenAIBody(req *core.LLMRequest) (*OpenAIChatCompletionBody, error) {
 	for _, m := range req.Messages {
 		msgs = append(msgs, openAIMessage{
 			Role:    m.Role,
-			Content: m.Role,
+			Content: m.Content,
 		})
 	}
 	body := &OpenAIChatCompletionBody{
@@ -67,14 +67,14 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 		return nil, fmt.Errorf("can't create openai request!")
 	}
 	// Headers content-type specify body format
-	req.Headers.Set("Content-Type", "application/json")
+	forwardReq.Header.Set("Content-Type", "application/json")
 	// header passthrough
 	for k, v := range req.Headers {
-		req.Headers[k] = v
+		forwardReq.Header[k] = v
 	}
 	// stream way need handler
 	if req.Stream != nil && *req.Stream {
-		req.Headers.Set("Accept", "text/event-stream")
+		forwardReq.Header.Set("Accept", "text/event-stream")
 	}
 
 	return forwardReq, nil

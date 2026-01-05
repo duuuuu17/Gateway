@@ -3,122 +3,96 @@ package main
 import (
 	"context"
 	"control-plane-model-test/pkg/config"
+	"control-plane-model-test/pkg/router/core"
 	"control-plane-model-test/pkg/router/handler"
+	"control-plane-model-test/pkg/router/inbound"
+	"control-plane-model-test/pkg/router/outbound"
 	"fmt"
-	"io"
-	"log"
-	"math/rand"
+	"log/slog"
 	"net/http"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
-var (
-	models           []string
-	Endpoints        []string
-	canaryRatio      float64
-	enabledStreaming bool
-	uriSuffix        = "/openai/v1/chat/completions"
-)
-
-// func init() {
-// }
-func serverParameters(r []config.ConfigReader) {
-	models = r[0].GetConfig().Models
-	Endpoints = r[0].GetConfig().Endpoints
-	canaryRatio = r[0].GetConfig().CanaryRatio
-	enabledStreaming = r[0].GetConfig().EnabledStreaming
-}
-
-func pickBackend(r *rand.Rand) string {
-
-	if r.Float64() < canaryRatio {
-		fmt.Println("choose secondary model!")
-		return Endpoints[0]
-	}
-	fmt.Println("choose primary model!")
-	return Endpoints[1]
-}
-func chatHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("got the request")
-	randObj := rand.New(rand.NewSource(time.Now().UnixNano()))
-	tartgetURI := pickBackend(randObj) + uriSuffix
-	// create request to real model server
-	req, err := http.NewRequestWithContext(
-		context.Background(),
-		http.MethodPost,
-		tartgetURI,
-		r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	// headers passthrough
-	for k, v := range r.Header {
-		req.Header[k] = v
-	}
-	client := &http.Client{Timeout: 0} // NOTE: Streaming of the reply way can't setting timeout
-	resp, err := client.Do(req)
-	if err != nil {
-		http.Error(w, err.Error(), 502)
-		return
-	}
-	defer resp.Body.Close()
-	// setting response headers
-	for k, v := range resp.Header {
-		w.Header()[k] = v
-	}
-	// write the response's StatusCode
-	w.WriteHeader(resp.StatusCode)
-	if enabledStreaming && strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			http.Error(w, "streaming unsupported", 500)
-			return
-		}
-		buf := make([]byte, 4096)
-		for {
-			n, err := resp.Body.Read(buf)
-			if n > 0 {
-				_, writeErr := w.Write(buf[:n])
-				if writeErr != nil {
-					fmt.Println("write stream error:", writeErr)
-					break
-				}
-				flusher.Flush()
-			}
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println("stream got error", err)
-				}
-				break
-			}
-		}
-		return
-	}
-	io.Copy(w, resp.Body)
-}
+// var (
+// 	models           []string
+// 	Endpoints        []string
+// 	canaryRatio      float64
+// 	enabledStreaming bool
+// 	uriSuffix        = "/openai/v1/chat/completions"
+// )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	// load yaml configuration
 	path := "./config.yaml"
-	storage, err := config.Initialization(path)
+	storage, err := config.Initialization(ctx, path)
 	if err != nil {
 		panic(err)
 	}
 
-	// 调用config模块进行主动初始化
-	loader := config.NewYAMLLoader(path)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// 上下文监听整个项目，实现graceful停止项目
 	// 启用监听
-	go config.WatchConfig(ctx, path, storage, loader)
 	storages := []config.ConfigReader{storage}
-	r := handler.InitialRouterModel(storages)
+	route := InitialRouterModel(storages)
 	// 调试代码：start
-	serverParameters(r.GetConfigs())
-	fmt.Printf("load backend configuration: %+v", r.GetConfigs()[0].GetConfig())
+	slogYAMLFileConfig := slog.AnyValue(route.GetConfigs()[0].GetConfig())
+	config := slog.Attr{Key: "YAMLFileConfig", Value: slogYAMLFileConfig}
+	slog.Info("load backend configuration:", config)
 	// 调试代码：end
-	http.HandleFunc("/openai/v1/chat/completions", chatHandler)
+	apiServe := &http.Server{
+		Addr: ":8080",
+		// Handler: , // 可能需要实现一个handler
+	}
+	http.HandleFunc("/", route.HandleFunc)
+
+	// 子线程监听服务意外的错误没
+	apiErrors := make(chan error, 1)
+	go func() {
+		if err := apiServe.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			apiErrors <- err
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		fmt.Println()
+		slog.Info("开始退出HTTP服务...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := apiServe.Shutdown(shutdownCtx); err != nil {
+			slog.Error("HTTP服务退出失败, 强制关闭中", "Error: ", err)
+			os.Exit(1)
+		}
+		slog.Info("HTTP 服务退出结束")
+		os.Exit(0)
+	case err := <-apiErrors:
+		fmt.Printf("HTTP 服务启动/运行异常：%s\n", err.Error())
+		os.Exit(1) // 异常退出，退出码 1
+	}
+
+	// "/openai/v1/chat/completions"
 	// log.Println("LLM Router listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+func InitialRouterModel(cfgs []config.ConfigReader) *handler.Router {
+	//todo: 调用实例的构造函数获取对象
+
+	inboundsRegistry := inbound.NewInboundAdapterRegistry()
+	inboundsRegistry.AddInboundAdapter("openai", inbound.NewOpenAIInBoundAdapter())
+
+	outboundsRegistry := outbound.NewOutBoundAdapterRegistry()
+	outboundsRegistry.AddOutboundRegistry("openai", outbound.NewOpenAIOutBoundAdapter())
+
+	forwardClient := core.NewHTTPForward()
+	dep := handler.RouterDeps{
+		Configs:  cfgs,
+		Inbound:  inboundsRegistry,
+		Outbound: outboundsRegistry,
+		Forward:  forwardClient,
+	}
+	return handler.NewRouter(dep)
 }

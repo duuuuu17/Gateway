@@ -5,6 +5,7 @@ import (
 	"control-plane-model-test/pkg/router/core"
 	"control-plane-model-test/pkg/router/inbound"
 	"control-plane-model-test/pkg/router/outbound"
+	"fmt"
 	"net/http"
 )
 
@@ -26,23 +27,20 @@ type OutboundRegistry interface {
 }
 
 // 由main函数调用的初始化函数
-func InitialRouterModel(cfgs []config.ConfigReader) *Router {
-	//todo: 调用实例的构造函数获取对象
-
-	inboundsRegistry := inbound.NewInboundAdapterRegistry()
-	inboundsRegistry.AddInboundAdapter("openai", inbound.NewOpenAIInBoundAdapter())
-
-	br := outbound.NewBackendRegistry()
-	br.AddBackendRegistry("qwem2", outbound.NewOpenAIOutBoundAdapter())
-
-	return NewRouter(cfgs, br, inboundsRegistry)
+// 初始化参数聚合，更符合后续工程项目的测试要爱方便
+type RouterDeps struct {
+	Configs  []config.ConfigReader
+	Inbound  InboundRegistry
+	Outbound OutboundRegistry
+	Forward  core.Forward
 }
 
-func NewRouter(cfgs []config.ConfigReader, outboundRegistry OutboundRegistry, inbounds InboundRegistry) *Router {
+func NewRouter(dep RouterDeps) *Router {
 	return &Router{
-		cfgs:     cfgs,
-		outbound: outboundRegistry,
-		inbounds: inbounds,
+		cfgs:      dep.Configs,
+		outbound:  dep.Outbound,
+		inbounds:  dep.Inbound,
+		forwarder: dep.Forward,
 	}
 }
 
@@ -69,6 +67,7 @@ func (r *Router) HandleFunc(w http.ResponseWriter, req *http.Request) {
 	// 根据中间态请求对象和配置参数选择目标后端服务
 	backendConfig, err := core.SelectBackend(llmRequest, r.cfgs)
 	if err != nil {
+		fmt.Printf("llmReq:%+v ", llmRequest)
 		http.Error(w, "no backend support!", 500)
 		return
 	}

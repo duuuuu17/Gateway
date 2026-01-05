@@ -15,16 +15,16 @@ type OutboundAdapter interface {
 
 // 所有outbound实例的注册仓库
 // outbound只关注后端模型提供的协议
-type BackendRegistry struct {
+type OutboundRegistry struct {
 	// map: protocol : OutboundAdapter
 	backends map[string]OutboundAdapter
 }
 
-func NewBackendRegistry() *BackendRegistry {
+func NewOutBoundAdapterRegistry() *OutboundRegistry {
 	m := make(map[string]OutboundAdapter)
-	return &BackendRegistry{backends: m}
+	return &OutboundRegistry{backends: m}
 }
-func (br *BackendRegistry) AddBackendRegistry(backend string, backendAdapter OutboundAdapter) {
+func (br *OutboundRegistry) AddOutboundRegistry(backend string, backendAdapter OutboundAdapter) {
 	if backend == "" {
 		return
 	}
@@ -33,7 +33,7 @@ func (br *BackendRegistry) AddBackendRegistry(backend string, backendAdapter Out
 	}
 	br.backends[backend] = backendAdapter
 }
-func (br *BackendRegistry) GetAdapter(backendType string) (OutboundAdapter, error) {
+func (br *OutboundRegistry) GetAdapter(backendType string) (OutboundAdapter, error) {
 	if backendType == "" {
 		return nil, fmt.Errorf("backend type is empty")
 	}

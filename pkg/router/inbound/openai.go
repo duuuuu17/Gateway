@@ -10,12 +10,12 @@ import (
 // DTO
 // 每个特定协议的具体所需参数获取
 type openAIRequest struct {
-	Model   string `json:"model"`
-	Message []struct {
+	Model    string `json:"model"`
+	Messages []struct {
 		Role    string `json:"role"`
 		Content string `json:"content"`
-	} `json:"message"`
-	Stream      *bool    `json:"stream,omitempty"`
+	} `json:"messages"`
+	Stream      *bool    `json:"stream,omitempty" default:"false"`
 	Temperature *float64 `json:"temperature,omitempty"`
 	TopP        *float64 `json:"top_p,omitempty"`
 	MaxTokens   *int     `json:"max_tokens,omitempty"`
@@ -57,14 +57,14 @@ func (od *OpenAIInBoundAdapter) Parse(req *http.Request) (*core.LLMRequest, erro
 	if err := json.NewDecoder(req.Body).Decode(&r); err != nil {
 		return nil, err
 	}
-	msgs := make([]*core.Message, 0, len(r.Message))
-	for _, msg := range r.Message {
+	msgs := make([]*core.Message, 0, len(r.Messages))
+	for _, msg := range r.Messages {
 		msgs = append(msgs, &core.Message{
 			Role:    msg.Role,
 			Content: msg.Content,
 		})
 	}
-	params := map[string]any{}
+	params := make(map[string]any)
 	if r.Temperature != nil {
 		params["temperature"] = *r.Temperature
 	}
