@@ -16,14 +16,6 @@ import (
 	"time"
 )
 
-// var (
-// 	models           []string
-// 	Endpoints        []string
-// 	canaryRatio      float64
-// 	enabledStreaming bool
-// 	uriSuffix        = "/openai/v1/chat/completions"
-// )
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -53,6 +45,7 @@ func main() {
 	// 子线程监听服务意外的错误没
 	apiErrors := make(chan error, 1)
 	go func() {
+		slog.Info("LLM Router listening on " + apiServe.Addr)
 		if err := apiServe.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			apiErrors <- err
 		}
@@ -74,9 +67,6 @@ func main() {
 		fmt.Printf("HTTP 服务启动/运行异常：%s\n", err.Error())
 		os.Exit(1) // 异常退出，退出码 1
 	}
-
-	// "/openai/v1/chat/completions"
-	// log.Println("LLM Router listening on :8080")
 }
 func InitialRouterModel(cfgs []config.ConfigReader) *handler.Router {
 	//todo: 调用实例的构造函数获取对象
