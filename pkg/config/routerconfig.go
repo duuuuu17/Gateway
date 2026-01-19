@@ -1,24 +1,54 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"strconv"
-
-	"go.yaml.in/yaml/v2"
+	"sync/atomic"
 )
 
-type ConfigReader interface {
-	GetConfig() RouterConfig
+// Router实际使用的对象
+// 项目使用的实际运行时的配置信息对象RouterModel
+type RouterConfig struct {
+	Backends []*RuntimeBackend
+	// Backends atomic.Value // map[ServiceName]*RuntimeBackend
 }
 
-// 实际保存的参数
-type RouterConfig struct {
+// Service 粒度
+type RuntimeBackend struct {
+	Name string
+
+	Capabilty BackendCapability // imutable CDS
+	// Endpoints atomic.Value      // []*Endpoint EDS
+	Routing BackendRouting // RDS
+
+	// 根据配置人员显示指示endpoint将使用的LoadBalancer策略
+	// 表示某selector算法的运行时状态，比如：
+	// RoundRobin、LeastConn
+	// 并且对于服务级策略还需要需要包含有状态值，比如：RR的Index
+	EndpointSelector EndpointSelector // EDS using LB state
+}
+type BackendCapability struct {
 	Models           []string
-	Protocol         string // openai / kserve
-	Endpoints        []string
-	CanaryRatio      float64
+	Protocols        []string // openai / kserve
+	Endpoints        []*Endpoint
 	EnabledStreaming bool
+}
+
+// 实际保存的后端Pod地址或Service地址
+type Endpoint struct {
+	Address string
+	// 表示Router当前是否认为该backend是否可被选中
+	// 可被修改的来源：K8s Pod / Endpoint health check
+	// 主动探测（/healthz）
+	// 被动熔断（连续 5xx / timeout）
+	Health     atomic.Bool
+	ActiveConn atomic.Int64 // Least_Conn
+}
+
+type BackendRouting struct {
+	Weight      int32
+	Priority    int32
+	CanaryRatio float64
+	Region      string
+	// Strategy    string
 }
 
 // 统一行为接口
@@ -26,74 +56,29 @@ type ConfigLoader interface {
 	Load() (RouterConfig, error)
 }
 
-// env 方式加载
-type EnvConfigLoader struct{}
+// func NewRouterConfig(init RouterConfig) *RouterConfig {
+// 	p := &RouterConfig{}
+// 	p.updateALL(init)
+// 	return p
+// }
+// func (s *RouterConfig) GetConfig() map[string]*RuntimeBackend {
+// 	return s.Backends.Load().(map[string]*RuntimeBackend)
+// }
+// func (s *RouterConfig) updateALL(cfg RouterConfig) {
+// 	s.Backends.Store(cfg)
+// }
+// func (s *RouterConfig) updateRuntimeBackendOfServiceName(serviceName string, cfg *RuntimeBackend) {
+// 	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
+// 	// Note: map can't modify in place, using Copy On Write.
+// 	newbackends := make(map[string]*RuntimeBackend, len(old))
+// 	for k, v := range old {
+// 		newbackends[k] = v
+// 	}
+// 	newbackends[serviceName] = cfg
+// 	s.Backends.Store(newbackends)
 
-func (ecp *EnvConfigLoader) Load() (RouterConfig, error) {
-	ratio, _ := strconv.ParseFloat(os.Getenv("CANARY_RATIO"), 64)
-	e := []string{os.Getenv("PRIMARY_BACKEND"), os.Getenv("SECONDARDY_BACKEND")}
-	return RouterConfig{
-		Endpoints:        e,
-		CanaryRatio:      ratio,
-		EnabledStreaming: os.Getenv("ENABLED_STREAMING") == "ture",
-	}, nil
-}
-
-// configmap方式: 单键值对就是一个文件的方式，挂载在/mnt目录下
-type ConfigMapProvider struct{}
-
-func (cmp *ConfigMapProvider) Load() (RouterConfig, error) {
-	ratio, _ := strconv.ParseFloat(readSingleKeyPairConfigFile("/mnt/config/canaryratio"), 64)
-	e := []string{readSingleKeyPairConfigFile("/mnt/config/primary"), readSingleKeyPairConfigFile("/mnt/config/secondary")}
-	return RouterConfig{
-		CanaryRatio:      ratio,
-		Endpoints:        e,
-		EnabledStreaming: readSingleKeyPairConfigFile("/mnt/config/enabledstreaming") == "true",
-	}, nil
-}
-
-func readSingleKeyPairConfigFile(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Printf("can't read file: %s [must the key is filename & the value is file value] Error: %w\n", path, err)
-		return ""
-	}
-	return string(data)
-}
-
-// yaml's way to load
-type YAMLLoader struct {
-	path string
-}
-
-func NewYAMLLoader(path string) *YAMLLoader {
-	return &YAMLLoader{path: path}
-}
-func (yamlp *YAMLLoader) Load() (RouterConfig, error) {
-	data, err := os.ReadFile(yamlp.path)
-	if err != nil {
-		return RouterConfig{}, fmt.Errorf("can't open the yaml file,Err:%w", err.Error())
-	}
-	var raw struct {
-		Backend struct {
-			Models      []string `yaml:"models"`
-			Protocol    string   `yaml:"protocol"`
-			Endpoints   []string `yaml:"endpoints"`
-			CanaryRatio float64  `yaml:"canaryRatio"`
-		} `yaml:"backend"`
-		Features struct {
-			Streaming bool `yaml:"streaming"`
-		} `yaml:"features"`
-	}
-
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return RouterConfig{}, err
-	}
-	return RouterConfig{
-		Models:           raw.Backend.Models,
-		Protocol:         raw.Backend.Protocol,
-		Endpoints:        raw.Backend.Endpoints,
-		CanaryRatio:      raw.Backend.CanaryRatio,
-		EnabledStreaming: raw.Features.Streaming,
-	}, nil
-}
+// }
+// func (s *RouterConfig) updateEndpointsOfServiceName(serviceName string, cfg []*Endpoint) {
+// 	backends := s.Backends.Load().(map[string]*RuntimeBackend)
+// 	backends[serviceName].Endpoints.Store(cfg)
+// }

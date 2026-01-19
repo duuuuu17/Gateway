@@ -9,6 +9,7 @@ type LLMRequest struct {
 	Messages []*Message
 	Prompt   string
 	Model    string
+	Strategy string
 	Stream   *bool
 	// 元信息透传
 	Headers http.Header

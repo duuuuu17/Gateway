@@ -2,15 +2,16 @@ package outbound
 
 import (
 	"context"
-	"control-plane-model-test/pkg/config"
-	"control-plane-model-test/pkg/router/core"
-	"fmt"
 	"net/http"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/config"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 )
 
 type OutboundAdapter interface {
-	BuildHTTPRequest(context.Context, *core.LLMRequest, config.ConfigReader) (*http.Request, error)
-	HandleResponse(context.Context, http.ResponseWriter, *http.Response)
+	BuildHTTPRequest(context.Context, *core.LLMRequest, *config.RuntimeBackend) (*http.Request, error)
+	HandleResponse(context.Context, http.ResponseWriter, *http.Response) error
 }
 
 // 所有outbound实例的注册仓库
@@ -33,13 +34,13 @@ func (br *OutboundRegistry) AddOutboundRegistry(backend string, backendAdapter O
 	}
 	br.backends[backend] = backendAdapter
 }
-func (br *OutboundRegistry) GetAdapter(backendType string) (OutboundAdapter, error) {
-	if backendType == "" {
-		return nil, fmt.Errorf("backend type is empty")
+func (br *OutboundRegistry) GetAdapter(protocols []string) (OutboundAdapter, error) {
+	for _, protocol := range protocols {
+		adapter, ok := br.backends[protocol]
+		if !ok {
+			continue
+		}
+		return adapter, nil
 	}
-	adapter, ok := br.backends[backendType]
-	if !ok {
-		return nil, fmt.Errorf("not registry the backend!")
-	}
-	return adapter, nil
+	return nil, core.ErrNotMatchingBackend
 }

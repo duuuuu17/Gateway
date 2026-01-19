@@ -1,9 +1,9 @@
 package inbound
 
 import (
-	"control-plane-model-test/pkg/router/core"
-	"fmt"
 	"net/http"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 )
 
 type InboundAdapter interface {
@@ -33,14 +33,14 @@ func (ad *InboundAdapterRegistry) GetAdapter(req *http.Request) (InboundAdapter,
 	if protocol != "" {
 		adapter, ok := ad.InboundAdapters[protocol]
 		if !ok {
-			return nil, fmt.Errorf("unkown protocol:%s", protocol)
+			return nil, core.ErrUnsupportProtocol
 		}
 		return adapter, nil
 	}
-	for _, val := range ad.InboundAdapters {
-		if val.Match(req) {
-			return val, nil
+	for _, adapter := range ad.InboundAdapters {
+		if adapter.Match(req) {
+			return adapter, nil
 		}
 	}
-	return nil, fmt.Errorf("not unsupport protocol!")
+	return nil, core.ErrUnsupportProtocol
 }

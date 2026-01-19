@@ -2,11 +2,12 @@ package inboundtest
 
 import (
 	"bytes"
-	"control-plane-model-test/pkg/router/inbound"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/router/inbound"
 )
 
 func TestOpenAIInbound_Match(t *testing.T) {

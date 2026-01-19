@@ -2,11 +2,6 @@ package main
 
 import (
 	"context"
-	"control-plane-model-test/pkg/config"
-	"control-plane-model-test/pkg/router/core"
-	"control-plane-model-test/pkg/router/handler"
-	"control-plane-model-test/pkg/router/inbound"
-	"control-plane-model-test/pkg/router/outbound"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,33 +9,59 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/config"
+	"github.com/duuuuu17/llm-router-operator/pkg/logs"
+	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
+	"github.com/duuuuu17/llm-router-operator/pkg/otels"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/handler"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/inbound"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/outbound"
 )
+
+const configPath = "/etc/llm-router/config/config.yaml"
+const path = "./config.yaml"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
+	// logger initial
+	logs.InitSlog(slog.LevelInfo)
+	// traace inital
+	otelConfig := otels.Config{
+		ServiceName:      "llm-route",
+		Version:          "0.0.1",
+		TracePodEndpoint: "172.18.0.2:30318", // 当打包镜像时，可以通过环境变量或yaml配置文件声明
+		Insecure:         true,
+		Probability:      1,
+	}
+	_, shuwdown, err := otels.Init(ctx, otelConfig)
+	defer shuwdown(ctx)
 	// load yaml configuration
-	path := "./config.yaml"
+
 	storage, err := config.Initialization(ctx, path)
 	if err != nil {
-		panic(err)
+		slog.Error("load yaml config file error", "Err: ", err)
 	}
-
 	// 上下文监听整个项目，实现graceful停止项目
 	// 启用监听
-	storages := []config.ConfigReader{storage}
-	route := InitialRouterModel(storages)
+	route := InitialRouterModel(storage)
 	// 调试代码：start
-	slogYAMLFileConfig := slog.AnyValue(route.GetConfigs()[0].GetConfig())
+	slogYAMLFileConfig := slog.AnyValue(route.GetConfigs())
 	config := slog.Attr{Key: "YAMLFileConfig", Value: slogYAMLFileConfig}
 	slog.Info("load backend configuration:", config)
 	// 调试代码：end
+
+	excluder := handler.NewExcludedEndpoints("/healthz", "/readyz", "/metrics", "/debug/pprof", "/favicon.ico")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", metrics.Healthz)
+	mux.HandleFunc("/", handler.TraceMiddleware(excluder)(route.HandleFunc))
 	apiServe := &http.Server{
-		Addr: ":8080",
-		// Handler: , // 可能需要实现一个handler
+		Addr:    ":8080",
+		Handler: mux, // 可能需要实现一个handler
 	}
-	http.HandleFunc("/", route.HandleFunc)
 
 	// 子线程监听服务意外的错误没
 	apiErrors := make(chan error, 1)
@@ -68,7 +89,7 @@ func main() {
 		os.Exit(1) // 异常退出，退出码 1
 	}
 }
-func InitialRouterModel(cfgs []config.ConfigReader) *handler.Router {
+func InitialRouterModel(cfgs config.ConfigReader) *handler.Router {
 	//todo: 调用实例的构造函数获取对象
 
 	inboundsRegistry := inbound.NewInboundAdapterRegistry()
@@ -78,11 +99,14 @@ func InitialRouterModel(cfgs []config.ConfigReader) *handler.Router {
 	outboundsRegistry.AddOutboundRegistry("openai", outbound.NewOpenAIOutBoundAdapter())
 
 	forwardClient := core.NewHTTPForward()
+	errsHandleMap := core.NewErrorHandleFuncMap()
+
 	dep := handler.RouterDeps{
-		Configs:  cfgs,
-		Inbound:  inboundsRegistry,
-		Outbound: outboundsRegistry,
-		Forward:  forwardClient,
+		Configs:       cfgs,
+		Inbound:       inboundsRegistry,
+		Outbound:      outboundsRegistry,
+		Forward:       forwardClient,
+		ErrsHandleMap: errsHandleMap,
 	}
 	return handler.NewRouter(dep)
 }

@@ -1,15 +1,17 @@
 package inbound
 
 import (
-	"control-plane-model-test/pkg/router/core"
 	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 )
 
 // DTO
 // 每个特定协议的具体所需参数获取
 type openAIRequest struct {
+	Strategy string `json:"strategy,omitempty"`
 	Model    string `json:"model"`
 	Messages []struct {
 		Role    string `json:"role"`
@@ -68,10 +70,18 @@ func (od *OpenAIInBoundAdapter) Parse(req *http.Request) (*core.LLMRequest, erro
 	if r.Temperature != nil {
 		params["temperature"] = *r.Temperature
 	}
+	if r.MaxTokens != nil {
+		params["max_tokens"] = *r.MaxTokens
+	}
 	if r.TopP != nil {
 		params["top_p"] = *r.TopP
 	}
+	strategy := req.Header.Get("X-LLM-Routing-Strategy")
+	if strategy != "" {
+		r.Strategy = strategy
+	}
 	return &core.LLMRequest{
+		Strategy:   strategy,
 		Model:      r.Model,
 		Messages:   msgs,
 		Stream:     r.Stream,

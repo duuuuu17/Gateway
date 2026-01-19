@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Forward interface {
@@ -29,6 +34,15 @@ func NewHTTPForward() *HTTPForward {
 }
 func (hf *HTTPForward) Do(req *http.Request) (*http.Response, error) {
 	// todo: using ctx print log/span
+	ctx, span := otel.Tracer("forward").Start(req.Context(), "router.forward",
+		trace.WithAttributes(
+			attribute.String("path", req.URL.Path),
+			attribute.String("method", req.Method),
+		),
+	)
+	defer span.End()
+	// 注入当前otel上下文到http头，并发送给后端Pod扩展该Trace
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 	return hf.Client.Do(req)
 }
 

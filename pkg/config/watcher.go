@@ -9,19 +9,20 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func Initialization(ctx context.Context, path string) (*AtomicConfigStore, error) {
-	yamlLoader := NewYAMLLoader(path)
+func Initialization(ctx context.Context, path string) (*MultiConfigStore, error) {
+	yamlLoader := NewMultiBackendLoader(path)
 	routerConfig, err := yamlLoader.Load()
 	if err != nil {
 		return nil, err
 	}
-	storage := NewAtomicConfigStore(routerConfig)
+	storage := NewMultiConfigStore(routerConfig)
 	go WatchConfig(ctx, path, storage, yamlLoader)
 
 	return storage, nil
-
 }
-func WatchConfig(ctx context.Context, filepath string, p *AtomicConfigStore, load ConfigLoader) {
+
+// 采用Hash ConfigMapFile方法
+func WatchConfig(ctx context.Context, filepath string, p *MultiConfigStore, load ConfigLoader) {
 	watcher, _ := fsnotify.NewWatcher()
 	watcher.Add(filepath)
 	var lastTIme time.Time
@@ -36,16 +37,15 @@ func WatchConfig(ctx context.Context, filepath string, p *AtomicConfigStore, loa
 			if events.Op&fsnotify.Write == fsnotify.Write {
 				if time.Since(lastTIme) > fixedDelayTime {
 					lastTIme = time.Now()
-					cfg, err := load.Load()
+					cfgs, err := load.Load()
 					if err == nil {
-						p.update(cfg)
+						p.update(cfgs)
 						// todo log print
 						// fmt.Printf("%+v", p.GetConfig())
 						log.Println("config reloaded")
 					}
 				}
 			}
-
 		}
 	}
 }
