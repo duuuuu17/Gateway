@@ -1,14 +1,14 @@
 package config
 
 import (
+	"maps"
 	"sync/atomic"
 )
 
 // Router实际使用的对象
 // 项目使用的实际运行时的配置信息对象RouterModel
 type RouterConfig struct {
-	Backends []*RuntimeBackend
-	// Backends atomic.Value // map[ServiceName]*RuntimeBackend
+	Backends atomic.Value // map[ServiceName]*RuntimeBackend
 }
 
 // Service 粒度
@@ -16,8 +16,8 @@ type RuntimeBackend struct {
 	Name string
 
 	Capabilty BackendCapability // imutable CDS
-	// Endpoints atomic.Value      // []*Endpoint EDS
-	Routing BackendRouting // RDS
+	Endpoints atomic.Value      // []*Endpoint EDS
+	Routing   BackendRouting    // RDS
 
 	// 根据配置人员显示指示endpoint将使用的LoadBalancer策略
 	// 表示某selector算法的运行时状态，比如：
@@ -43,11 +43,20 @@ type Endpoint struct {
 	ActiveConn atomic.Int64 // Least_Conn
 }
 
+func NewEndpoint(address string) *Endpoint {
+	e := &Endpoint{
+		Address: address,
+	}
+	e.Health.Store(true)
+	e.ActiveConn.Store(0)
+	return e
+}
+
 type BackendRouting struct {
-	Weight      int32
-	Priority    int32
-	CanaryRatio float64
-	Region      string
+	Weight   int32
+	Priority int32
+	// CanaryRatio float64
+	Region string
 	// Strategy    string
 }
 
@@ -56,29 +65,66 @@ type ConfigLoader interface {
 	Load() (RouterConfig, error)
 }
 
-// func NewRouterConfig(init RouterConfig) *RouterConfig {
-// 	p := &RouterConfig{}
-// 	p.updateALL(init)
-// 	return p
-// }
-// func (s *RouterConfig) GetConfig() map[string]*RuntimeBackend {
-// 	return s.Backends.Load().(map[string]*RuntimeBackend)
-// }
-// func (s *RouterConfig) updateALL(cfg RouterConfig) {
-// 	s.Backends.Store(cfg)
-// }
-// func (s *RouterConfig) updateRuntimeBackendOfServiceName(serviceName string, cfg *RuntimeBackend) {
-// 	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
-// 	// Note: map can't modify in place, using Copy On Write.
-// 	newbackends := make(map[string]*RuntimeBackend, len(old))
-// 	for k, v := range old {
-// 		newbackends[k] = v
-// 	}
-// 	newbackends[serviceName] = cfg
-// 	s.Backends.Store(newbackends)
+func NewRouterConfig(init RouterConfig) *RouterConfig {
+	p := &RouterConfig{}
+	p.updateALL(init)
+	return p
+}
+func (s *RouterConfig) GetConfig() map[string]*RuntimeBackend {
+	return s.Backends.Load().(map[string]*RuntimeBackend)
+}
+func (s *RouterConfig) updateALL(cfg RouterConfig) {
+	s.Backends.Store(cfg)
+}
+func (s *RouterConfig) UpdateRuntimeBackendOfServiceName(serviceName string, cfg *RuntimeBackend) {
+	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
+	// Note: map can't modify in place, using Copy On Write.
+	newbackends := make(map[string]*RuntimeBackend, len(old))
+	maps.Copy(newbackends, old)
+	newbackends[serviceName] = cfg
+	s.Backends.Store(newbackends)
 
-// }
-// func (s *RouterConfig) updateEndpointsOfServiceName(serviceName string, cfg []*Endpoint) {
-// 	backends := s.Backends.Load().(map[string]*RuntimeBackend)
-// 	backends[serviceName].Endpoints.Store(cfg)
-// }
+}
+func (s *RouterConfig) UpdateEndpointsOfServiceName(serviceName string, cfg []*Endpoint) {
+	backends := s.Backends.Load().(map[string]*RuntimeBackend)
+	backends[serviceName].Endpoints.Store(cfg)
+}
+func (rb *RuntimeBackend) GetEndpoints() []*Endpoint {
+	return rb.Endpoints.Load().([]*Endpoint)
+}
+func (s *RouterConfig) DeleteRuntimeBackendOfServiceName(serviceNames []string) {
+	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
+	// Note: map can't modify in place, using Copy On Write.
+	newbackends := make(map[string]*RuntimeBackend, len(old))
+	maps.Copy(newbackends, old)
+	for _, resName := range serviceNames {
+		delete(newbackends, resName)
+	}
+	s.Backends.Store(newbackends)
+}
+func (s *RouterConfig) DeleteEndpointsOfServiceName(serviceNames []string) {
+	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
+	// Note: map can't modify in place, using Copy On Write.
+	newbackends := make(map[string]*RuntimeBackend, len(old))
+	maps.Copy(newbackends, old)
+	for _, resName := range serviceNames {
+		if rb, ok := newbackends[resName]; ok {
+			rb.Capabilty.Endpoints = []*Endpoint{}
+			rb.Endpoints.Store([]*Endpoint{})
+		}
+
+	}
+	s.Backends.Store(newbackends)
+}
+func (s *RouterConfig) DeleteBackendRoutingOfServiceName(serviceNames []string) {
+	old := s.Backends.Load().(map[string]*RuntimeBackend) // old obj is immutable snapshot
+	// Note: map can't modify in place, using Copy On Write.
+	newbackends := make(map[string]*RuntimeBackend, len(old))
+	maps.Copy(newbackends, old)
+	for _, resName := range serviceNames {
+		if rb, ok := newbackends[resName]; ok {
+			rb.Routing = BackendRouting{}
+		}
+	}
+	s.Backends.Store(newbackends)
+}

@@ -50,11 +50,19 @@ type Capability struct {
 	// Endpoints is a list of API endpoints
 	// +optional
 	Endpoints []string `json:"endpoints,omitempty" yaml:"endpoints,omitempty"`
-
+	// specify port
+	// +optional
+	Port *Port `json:"port,omitempty"  yaml:"port,omitempty"`
 	// Streaming indicates whether the backend supports streaming responses
 	// +kubebuilder:default=false
 	// +optional
 	Streaming *bool `json:"streaming,omitempty" yaml:"streaming,omitempty"`
+}
+
+// +k8s:deepcopy-gen=true
+type Port struct {
+	Number *int32 `json:"number" yaml:"number"`
+	Name   string `json:"name" yaml:"name"`
 }
 
 // // Endpoint represents an API endpoint
@@ -80,9 +88,11 @@ type Routing struct {
 	// // +optional
 	// Canary *Canary `json:"canary,omitempty" yaml:"canary,omitempty"`
 
-	// // Selectors is a list of routing strategies to use
-	// // +optional
-	Strategy string `json:"strategy,omitempty" yaml:"strategy,omitempty"`
+	// Selectors is a list of routing strategies to use
+	// +optional
+	Selector string `json:"selector,omitempty" yaml:"selector,omitempty"`
+	// +optional
+	Region string `json:"region,omitempty" yaml:"region,omitempty"`
 }
 
 // // Canary defines canary deployment settings

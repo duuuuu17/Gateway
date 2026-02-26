@@ -76,6 +76,18 @@ spec:
                               items:
                                 type: string
                               type: array
+                            port:
+                              description: specify port
+                              properties:
+                                name:
+                                  type: string
+                                number:
+                                  format: int32
+                                  type: integer
+                              required:
+                              - name
+                              - number
+                              type: object
                             protocols:
                               description: Protocols is a list of supported protocols
                               items:
@@ -98,10 +110,11 @@ spec:
                               description: Priority determines the order of preference
                               format: int32
                               type: integer
-                            strategy:
-                              description: |-
-                                // Selectors is a list of routing strategies to use
-                                // +optional
+                            region:
+                              type: string
+                            selector:
+                              description: Selectors is a list of routing strategies
+                                to use
                               type: string
                             weight:
                               description: Weight is the relative weight for load

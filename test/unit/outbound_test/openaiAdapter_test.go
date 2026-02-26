@@ -29,47 +29,25 @@ func NewFakeQwenCfg() *fakeQwenCfg {
 	tmp2.ActiveConn.Store(0)
 	r := config.InitEndpointLevelSelectorRegistry()
 	selector, _ := r.New("least_conn")
-	return &fakeQwenCfg{config.RouterConfig{Backends: []*config.RuntimeBackend{
-		&config.RuntimeBackend{
-			Name: "test",
-			Capabilty: config.BackendCapability{
-				Models:           []string{"qwen"},
-				Endpoints:        []*config.Endpoint{tmp, tmp2},
-				Protocols:        []string{"openai"},
-				EnabledStreaming: true,
-			},
-			Routing: config.BackendRouting{
-				CanaryRatio: 0.5,
-				// Selectors:   []string{"canary"},
-			},
-			EndpointSelector: selector,
+	fakeCfg := &fakeQwenCfg{config.RouterConfig{}}
+	fakeBackend := make(map[string]*config.RuntimeBackend)
+	fakeBackend["test"] = &config.RuntimeBackend{
+		Name: "test",
+		Capabilty: config.BackendCapability{
+			Models:           []string{"qwen"},
+			Endpoints:        []*config.Endpoint{tmp, tmp2},
+			Protocols:        []string{"openai"},
+			EnabledStreaming: true,
 		},
-	}}}
-}
-func GetConfig() config.RouterConfig {
-	tmp := &config.Endpoint{}
-	tmp.Address = "http://127.0.0.1:8080"
-	tmp.Health.Store(true)
-	tmp.ActiveConn.Store(0)
-	return config.RouterConfig{Backends: []*config.RuntimeBackend{
-		&config.RuntimeBackend{
-			Name: "test",
-			Capabilty: config.BackendCapability{
-				Models:           []string{"qwen"},
-				Endpoints:        []*config.Endpoint{tmp},
-				Protocols:        []string{"openai"},
-				EnabledStreaming: true,
-			},
-			Routing: config.BackendRouting{
-				CanaryRatio: 0.5,
-				// Selectors:   []string{"canary"},
-			},
-			EndpointSelector: &config.RoundRobinSelector{},
+		Routing: config.BackendRouting{
+			Weight: 50,
+			// Selectors:   []string{"canary"},
 		},
-	}}
-}
-func (fc *fakeQwenCfg) GetConfig() config.RouterConfig {
-	return fc.RouterConfig
+		EndpointSelector: selector,
+	}
+	fakeBackend["test"].Endpoints.Store([]*config.Endpoint{tmp, tmp2})
+	fakeCfg.Backends.Store(fakeBackend)
+	return fakeCfg
 }
 
 func TestPickOpenAIAdapter(t *testing.T) {
@@ -77,8 +55,8 @@ func TestPickOpenAIAdapter(t *testing.T) {
 	reg := outbound.NewOutBoundAdapterRegistry()
 	reg.AddOutboundRegistry("openai", outbound.NewOpenAIOutBoundAdapter())
 
-	var backendCfg config.ConfigReader = &fakeQwenCfg{}
-	adapter, err := reg.GetAdapter(backendCfg.GetConfig().Backends[0].Capabilty.Protocols)
+	backendCfg := NewFakeQwenCfg()
+	adapter, err := reg.GetAdapter(backendCfg.GetConfig()["test"].Capabilty.Protocols)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,14 +78,14 @@ func TestOpenAIBuildHTTPReqeust(t *testing.T) {
 			"max_tokens":   64,
 		},
 	}
-	var backendCfg config.ConfigReader = NewFakeQwenCfg()
+	backendCfg := NewFakeQwenCfg()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	adapter := outbound.NewOpenAIOutBoundAdapter()
 	if _, ok := adapter.(*outbound.OpenAIOutBoundAdapter); !ok {
 		t.Fatal("get adaper was failed,not matched one!")
 	}
-	req, err := adapter.BuildHTTPRequest(ctx, r, backendCfg.GetConfig().Backends[0])
+	req, err := adapter.BuildHTTPRequest(ctx, r, backendCfg.GetConfig()["test"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +93,7 @@ func TestOpenAIBuildHTTPReqeust(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("request URL:%s", req.Host+req.URL.Path)
-	cfg := backendCfg.GetConfig().Backends[0]
+	cfg := backendCfg.GetConfig()["test"]
 	e, err := cfg.EndpointSelector.Select(cfg.Capabilty.Endpoints)
 	if err != nil {
 		t.Fatal(err)

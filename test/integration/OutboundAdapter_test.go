@@ -13,8 +13,6 @@ import (
 	router "github.com/duuuuu17/llm-router-operator/test/integration/router_test"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/duuuuu17/llm-router-operator/pkg/config"
-
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/outbound"
 )
@@ -52,16 +50,12 @@ func TestRouter_OutboundAdapterBuildHTTPRequest(t *testing.T) {
 		t.Fatalf("unexpected parse:%+v", llmReq)
 	}
 	// 加载配置文件信息
-	path := "./tmp/config.yaml"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	storage, err := config.Initialization(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	storage := NewFakeQwenCfg()
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, _ := core.FilterCandidates(llmReq, storage)
+	candidates, _ := core.FilterCandidates(llmReq, storage.RouterConfig)
 	strategy := core.ResolveStrategy(llmReq)
 	// 检测策略选择
 	if strategy != "FirstPick" {
@@ -69,7 +63,7 @@ func TestRouter_OutboundAdapterBuildHTTPRequest(t *testing.T) {
 	}
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
-	sele, err := selectors.GetSelector(strategy)
+	sele, err := selectors.GetFilter(strategy)
 	// 检查selector选取
 	if _, ok := sele.(*filters.PickFirstFilterPlicy); !ok {
 		t.Fatal("selector is not FirstPick!")
@@ -117,7 +111,7 @@ func TestRouter_Forward(t *testing.T) {
 		strings.NewReader(body),
 	)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-LLM-Routing-Strategy", "FirstPick")
+	req.Header.Set("X-LLM-Routing-Strategy", "default")
 	adapter, err := reg.GetAdapter(req)
 	if err != nil {
 		t.Fatal(err)
@@ -134,20 +128,19 @@ func TestRouter_Forward(t *testing.T) {
 		t.Fatalf("unexpected parse:%+v", llmReq)
 	}
 	// 加载配置文件信息
-	path := "./tmp/config.yaml"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	storage, err := config.Initialization(ctx, path)
+	storage := NewFakeQwenCfg()
 	if err != nil {
 		t.Fatal(err)
 	}
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, _ := core.FilterCandidates(llmReq, storage)
+	candidates, _ := core.FilterCandidates(llmReq, storage.RouterConfig)
 	strategy := core.ResolveStrategy(llmReq)
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
-	sele, err := selectors.GetSelector(strategy)
+	sele, err := selectors.GetFilter(strategy)
 	// 检查selector选取
 	if _, ok := sele.(*filters.PickFirstFilterPlicy); !ok {
 		t.Log("can't got selector")

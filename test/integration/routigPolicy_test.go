@@ -14,6 +14,41 @@ import (
 	"github.com/duuuuu17/llm-router-operator/pkg/router/outbound"
 )
 
+type fakeQwenCfg struct {
+	config.RouterConfig
+}
+
+func NewFakeQwenCfg() *fakeQwenCfg {
+	tmp := &config.Endpoint{}
+	tmp.Address = "http://127.0.0.1:8080"
+	tmp.Health.Store(true)
+	tmp.ActiveConn.Store(0)
+	tmp2 := &config.Endpoint{}
+	tmp2.Address = "http://127.0.0.2:8080"
+	tmp2.Health.Store(true)
+	tmp2.ActiveConn.Store(0)
+	r := config.InitEndpointLevelSelectorRegistry()
+	selector, _ := r.New("least_conn")
+	fakeCfg := &fakeQwenCfg{config.RouterConfig{}}
+	fakeBackend := make(map[string]*config.RuntimeBackend)
+	fakeBackend["test"] = &config.RuntimeBackend{
+		Name: "test",
+		Capabilty: config.BackendCapability{
+			Models:           []string{"qwen", "qwen2.5"},
+			Endpoints:        []*config.Endpoint{tmp, tmp2},
+			Protocols:        []string{"openai"},
+			EnabledStreaming: true,
+		},
+		Routing: config.BackendRouting{
+			Weight: 50,
+			// Selectors:   []string{"canary"},
+		},
+		EndpointSelector: selector,
+	}
+	fakeBackend["test"].Endpoints.Store([]*config.Endpoint{tmp, tmp2})
+	fakeCfg.Backends.Store(fakeBackend)
+	return fakeCfg
+}
 func TestRouter_SelectBackend(t *testing.T) {
 	body := `{
 		"model": "qwen2.5",
@@ -48,21 +83,22 @@ func TestRouter_SelectBackend(t *testing.T) {
 		t.Fatalf("unexpected parse:%+v", llmReq)
 	}
 	// 加载配置文件信息
-	path := "./tmp/config.yaml"
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	storage, err := config.Initialization(ctx, path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	storage := NewFakeQwenCfg()
+
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, _ := core.FilterCandidates(llmReq, storage)
+	candidates, err := core.FilterCandidates(llmReq, storage.RouterConfig)
+	if err != nil {
+		t.Fatal("not match backend,check fakeBackends info !")
+
+	}
 	strategy := core.ResolveStrategy(llmReq)
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
 	selectors.AddSelector("Canary", filters.NewCanaryFilterPolicy())
-	sele, err := selectors.GetSelector(strategy)
+	sele, err := selectors.GetFilter(strategy)
 	if err != nil {
 		t.Fatal("can't got selector")
 	}

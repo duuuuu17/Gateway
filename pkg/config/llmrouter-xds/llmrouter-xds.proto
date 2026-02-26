@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package llmrouter.xds.v1alpha1;
+option go_package = "./llmrouterxds;llmrouterxds"; // 生成Go代码的包路径
+
+import "google/protobuf/any.proto";
+
+service AggregatedDiscoveryService {
+  rpc StreamAggregatedResources(stream DiscoveryRequest)
+      returns (stream DiscoveryResponse);
+}
+// 由Data Plane发送初始请求或ACK
+message DiscoveryRequest {
+  string version_info = 1;
+  // 关键字段：资源类型
+  string type_url = 2; // type.googleapis.com.llmrouter.xds.v1alpha1.<CDS/EDS/RDS-name>
+  // 订阅的 service 名
+  repeated string resource_names = 3;
+  // 数据面实例ID
+  string node_id = 4; 
+  // 控制面给定数据面使用的nonce，防止重放
+  string response_nonce = 5;
+  string error_detail = 6;
+}
+// 由Control Plane 推送
+message DiscoveryResponse {
+  string version_info = 1;
+  // 关键字段：资源类型
+  string type_url = 2;
+  // 订阅的 service 名
+  repeated google.protobuf.Any resources = 3;
+  repeated string remove_resources = 4;
+  // 避免重放
+  string nonce = 5;
+}
+// ==========================================
+// 具体资源定义 (Data Transfer Object - DTO)
+// ==========================================
+// CDS
+message LLMRouterCluster  {
+    string name = 1;
+    repeated string models = 2;
+    repeated string protocols = 3;
+    bool streaming = 4;
+    string lb_strategy = 5;
+}
+// EDS
+message LLMRouterEndpointAssignment{
+    string cluster_name = 1;
+    repeated LLMRouterEndpoint endpoints = 2;
+}
+message LLMRouterEndpoint{
+    string address = 1;
+}
+// RDS
+message LLMRouterRouting{
+    string cluster_name = 1;
+    int32 weight = 2;
+    int32 priority = 3;
+    string region = 4;
+}

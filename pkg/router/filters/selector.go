@@ -22,9 +22,9 @@ func (sr *SelectorRegistry) AddSelector(strategy string, selector CandidatesFilt
 	}
 	sr.m[strategy] = selector
 }
-func (sr *SelectorRegistry) GetSelector(strategy string) (CandidatesFilter, error) {
+func (sr *SelectorRegistry) GetFilter(strategy string) (CandidatesFilter, error) {
 	if strategy == "" {
-		return sr.m["RoundRobin"], nil
+		return sr.m["default"], nil
 	}
 	s, ok := sr.m[strategy]
 	if !ok {

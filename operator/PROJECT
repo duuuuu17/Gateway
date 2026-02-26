@@ -23,4 +23,9 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- controller: true
+  domain: llm-router.example.io
+  group: discovery.k8s.io
+  kind: EndpointSlice
+  version: v1
 version: "3"

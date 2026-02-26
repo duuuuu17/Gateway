@@ -84,9 +84,9 @@ func (mbl *MultiBackendLoader) Load() (RouterConfig, error) {
 	}
 	// var backends atomic.Value
 	// backends.Store(cfgs)
-	return RouterConfig{
-		Backends: cfgs,
-	}, nil
+	routerCfg := RouterConfig{}
+	routerCfg.Backends.Store(cfgs)
+	return routerCfg, nil
 }
 func compileRuntimeParameters(cfg Backend, e *SelectorRegistry) (*RuntimeBackend, error) {
 

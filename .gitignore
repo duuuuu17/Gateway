@@ -28,5 +28,4 @@ go.work
 
 # Kubeconfig might contain secrets
 *.kubeconfig
-# tag v1alpha1 skip operator
-!operator/*
+

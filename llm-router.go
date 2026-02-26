@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/duuuuu17/llm-router-operator/pkg/cmd"
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	"github.com/duuuuu17/llm-router-operator/pkg/logs"
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
 	"github.com/duuuuu17/llm-router-operator/pkg/otels"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/filters"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/handler"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/inbound"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/outbound"
@@ -22,6 +24,7 @@ import (
 
 const configPath = "/etc/llm-router/config/config.yaml"
 const path = "./config.yaml"
+const grpcServerEndpoint = ":50051"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
@@ -39,20 +42,19 @@ func main() {
 	}
 	_, shuwdown, err := otels.Init(ctx, otelConfig)
 	defer shuwdown(ctx)
-	// load yaml configuration
+	if err != nil {
+		slog.Error("start otel metrics model error", "Err: ", err)
+	}
 
-	storage, err := config.Initialization(ctx, path)
+	// load yaml configuration
+	// storage, err := config.Initialization(ctx, path)
 	if err != nil {
 		slog.Error("load yaml config file error", "Err: ", err)
 	}
+	storage := config.RouterConfig{}
 	// 上下文监听整个项目，实现graceful停止项目
 	// 启用监听
 	route := InitialRouterModel(storage)
-	// 调试代码：start
-	slogYAMLFileConfig := slog.AnyValue(route.GetConfigs())
-	config := slog.Attr{Key: "YAMLFileConfig", Value: slogYAMLFileConfig}
-	slog.Info("load backend configuration:", config)
-	// 调试代码：end
 
 	excluder := handler.NewExcludedEndpoints("/healthz", "/readyz", "/metrics", "/debug/pprof", "/favicon.ico")
 	mux := http.NewServeMux()
@@ -62,7 +64,10 @@ func main() {
 		Addr:    ":8080",
 		Handler: mux, // 可能需要实现一个handler
 	}
-
+	// Client与控制面的grpc server构建tcp连接
+	endpointSelector := config.NewSelectorRegistry()
+	// 创建的同时，自动调用处理循环函数
+	clientStream := cmd.NewStreamClient(ctx, grpcServerEndpoint, &storage, endpointSelector)
 	// 子线程监听服务意外的错误没
 	apiErrors := make(chan error, 1)
 	go func() {
@@ -71,13 +76,16 @@ func main() {
 			apiErrors <- err
 		}
 	}()
+
 	select {
 	case <-ctx.Done():
 		fmt.Println()
 		slog.Info("开始退出HTTP服务...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
+		slog.Info("client grpc bidStream Closing...")
+		clientStream.CloseStreamClient()
+		slog.Info("client grpc bidStream Closed...")
 		if err := apiServe.Shutdown(shutdownCtx); err != nil {
 			slog.Error("HTTP服务退出失败, 强制关闭中", "Error: ", err)
 			os.Exit(1)
@@ -89,7 +97,7 @@ func main() {
 		os.Exit(1) // 异常退出，退出码 1
 	}
 }
-func InitialRouterModel(cfgs config.ConfigReader) *handler.Router {
+func InitialRouterModel(cfgs config.RouterConfig) *handler.Router {
 	//todo: 调用实例的构造函数获取对象
 
 	inboundsRegistry := inbound.NewInboundAdapterRegistry()
@@ -101,12 +109,22 @@ func InitialRouterModel(cfgs config.ConfigReader) *handler.Router {
 	forwardClient := core.NewHTTPForward()
 	errsHandleMap := core.NewErrorHandleFuncMap()
 
+	filtersRegistry := filters.NewSelectorRegistry()
+	filtersRegistry.AddSelector("default", filters.NewPickFirstFilterPlicy())
+	filtersRegistry.AddSelector("canary", filters.NewCanaryFilterPolicy())
+
 	dep := handler.RouterDeps{
-		Configs:       cfgs,
-		Inbound:       inboundsRegistry,
-		Outbound:      outboundsRegistry,
-		Forward:       forwardClient,
-		ErrsHandleMap: errsHandleMap,
+		Configs:         cfgs,
+		Inbound:         inboundsRegistry,
+		Outbound:        outboundsRegistry,
+		Forward:         forwardClient,
+		BackendSelector: filtersRegistry,
+		ErrsHandleMap:   errsHandleMap,
 	}
+	// 调试代码：start
+	slogYAMLFileConfig := slog.AnyValue(cfgs)
+	config := slog.Attr{Key: "YAMLFileConfig", Value: slogYAMLFileConfig}
+	slog.Info("load backend configuration:", config)
+	// 调试代码：end
 	return handler.NewRouter(dep)
 }

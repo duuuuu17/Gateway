@@ -18,35 +18,44 @@ package controller
 
 import (
 	"context"
-	"strings"
 
 	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
 	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
-	corev1 "k8s.io/api/core/v1"
+	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
+	"github.com/go-logr/logr"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
 	configMapPath = ".spec.configMapName"
 	finalizer     = "llmrouter_config"
+	TypeCDS       = "cds"
+	TypeEDS       = "eds"
+	TypeRDS       = "rds"
 )
+
+//todo:
+// CR Reconciler → CDS / RDS
+//EndpointSlice Informer → EDS
 
 // LLMRouterConfigReconciler reconciles a LLMRouterConfig object
 type LLMRouterConfigReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	// Watcher *utils.ResourceWatcher
+	Scheme     *runtime.Scheme
+	XDSManager llmrouterxds.XDSManager
+	Logger     logr.Logger
+	Debouncer  llmrouterxds.Debouncer
 }
 
 // +kubebuilder:rbac:groups=config.llm-router.example.io,resources=llmrouterconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -67,105 +76,122 @@ func (r *LLMRouterConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	// Fetch CR
 	var cfg configv1alpha1.LLMRouterConfig
 	if err := r.Get(ctx, req.NamespacedName, &cfg); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.XDSManager.DeleteAllXDSs() // 未查到CR实例，删除本地缓存
+			return utils.Reconciled()
+		}
 		return utils.RequeueErrCheck(ctx, err, "can't got the CR obj")
 	}
 	// Handle deletion
 	if !cfg.DeletionTimestamp.IsZero() {
-		r.reconcileDelete(ctx, &cfg)
-
+		return r.reconcileDelete(ctx, &cfg)
 	}
-
-	fqdn := "my-svc.my-namespace.svc.cluster.local"
-	// 获取实际设置的host的endpointlist
-	var endpointList discoveryv1.EndpointSliceList
-	parts := strings.Split(fqdn, ",")
-	namespace, svcName := parts[1], parts[0]
-	// svcLabelSelector :=
-	err := r.List(ctx, &endpointList,
-		client.InNamespace(namespace),
-		client.MatchingFields{
-			"kubernetes.io/service-name": svcName,
-		})
-	if err != nil {
-		return utils.Reconciled()
-	}
-	endpoints := []string{}
-	for _, item := range endpointList.Items {
-		for _, ep := range item.Endpoints {
-			if ep.Conditions.Ready != nil && *ep.Conditions.Ready {
-				for _, addr := range ep.Addresses {
-					endpoints = append(endpoints, addr)
-				}
-			}
-		}
-	}
-
-	// Ensure Finalizer
+	// check wether finalizer is set
 	r.reconcileFinalizer(ctx, cfg)
-	// validate spec
-	// prepare create from cr setting configmapName
-	r.reconcileConfigMapCreateOrUpdate(ctx, &cfg)
+	// need update servicename
+	events := r.UpdateReconcile(ctx, cfg.Spec.Backends)
+	// Ensure Finalizer, need deleted  others subresources
+	// r.reconcileFinalizer(ctx, cfg)
+
+	// 根据更新的服务和删除的服务列表构建事件并推送给debouncer
+	go r.pushXDSEvent(events)
 
 	return ctrl.Result{}, nil
 }
-func (r *LLMRouterConfigReconciler) NeedUpdate(cr *configv1alpha1.LLMRouterConfig, dataHash string) bool {
-	if cr.Status.ConfigDataHash == dataHash {
-		return false
+func (r *LLMRouterConfigReconciler) pushXDSEvent(events []llmrouterxds.ReconcilerPushEvent) {
+	for _, ev := range events {
+		r.Debouncer.Enqueue(ev)
 	}
-	return true
 }
-func (r *LLMRouterConfigReconciler) reconcileConfigMapCreateOrUpdate(ctx context.Context, cr *configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
-	configMapName := utils.GenerateConfigMapName(*cr)
-	desireDate, err := utils.BuildConfigMapData(*cr)
-	if err != nil {
-		return utils.RequeueErr(ctx, err, "build ConfigMap data error")
-	}
-	// 计算提前计算是否不需要更新操作
-	dataHash := utils.ComputeMapHash(desireDate)
-	if !r.NeedUpdate(cr, dataHash) {
-		return utils.Reconciled()
-	}
 
-	// ConfigMap处理
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName,
-			Namespace: cr.Namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "llm-router-operator"},
-		},
+func (r *LLMRouterConfigReconciler) GetMatchingLabelsEndpointSlice(ctx context.Context, svcName string) *discoveryv1.EndpointSlice {
+	var esList discoveryv1.EndpointSliceList
+	if err := r.List(ctx, &esList, client.MatchingLabels{
+		"kubernetes.io/service-name": svcName,
+	}); err != nil {
+		return nil
 	}
-	result, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm,
-		func() error {
-			cm.Data = desireDate
-			return controllerutil.SetControllerReference(cr, cm, r.Scheme)
-		})
-	// ConfigMap Ready/Synced/ConfigMapCreated
-	if err != nil {
-		r.setCondition(
-			ctx, cr,
-			"Synced", metav1.ConditionFalse, "UpdateFailed",
-			err.Error())
-		r.setReady(ctx, cr, false, "SyncFailed")
-		return utils.RequeueErr(ctx, err, "update configmap failed")
+	return &esList.Items[0]
+}
+func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backends *configv1alpha1.BackendConfig) (push []llmrouterxds.ReconcilerPushEvent) {
+
+	desiredServiceNames := make([]string, 0, len(backends.Backends))
+	// 用于收集本轮 Reconciler 发生缓存数据更新的服务列表
+	dirtyServices := make([]string, 0)
+	// 用于收集本轮 Reconcile 产生的需要推送的事件
+	dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0)
+	// 处理Create、updae还是delete本质是desire与current的serviceNames列表的集合进行比较
+	for _, backend := range backends.Backends {
+		serviceName := backend.Name
+		desiredServiceNames = append(desiredServiceNames, serviceName)
+		// DTO
+		clusterSpec, routerSpec := llmrouterxds.NewClusterSpec(&backend)
+
+		cluster := clusterSpec.ToLLMRouterCluster()
+		serviceCfg := clusterSpec.ToLLMRouterServiceConfig()
+		router := routerSpec.ToLLMRouterrouting()
+		// ===========================
+		// Phase 1: 处理 Create 和 Update
+		// ===========================
+		isChange := false
+		if r.XDSManager.UpdateOrCreateServiceConfig(serviceName, serviceCfg) {
+			isChange = true
+		}
+		if r.XDSManager.UpdateOrCreateCDS(serviceName, cluster, serviceCfg) {
+			isChange = true
+			dirtyEvents = append(dirtyEvents, NewEvent(TypeCDS, serviceName))
+
+		}
+		if r.XDSManager.UpdateOrCreateRDS(serviceName, router, serviceCfg) {
+			isChange = true
+			dirtyEvents = append(dirtyEvents, NewEvent(TypeRDS, serviceName))
+		}
+		// 需要确认创建的eds,以及修改port时，需要主动推送
+		es := r.GetMatchingLabelsEndpointSlice(ctx, serviceName)
+		eds := ExtractReadyEndpointsFromEndpointSlice(*es, *serviceCfg)
+		if r.XDSManager.UpdateOrCreateEDS(serviceName, eds) {
+			isChange = true
+			dirtyEvents = append(dirtyEvents, NewEvent(TypeEDS, serviceName))
+		}
+		if isChange {
+			dirtyServices = append(dirtyServices, serviceName)
+		}
 	}
-	log.FromContext(ctx).Info("configmap reconciled", "operation", result)
-	// 计算当前的哈希值
-	cr.Status.ConfigDataHash = dataHash
-	// create or update operator success
-	cr.Status.Synced = true
-	cr.Status.ConfigMapName = configMapName
-	r.setCondition(
-		ctx, cr,
-		"ConfigMapCreated", metav1.ConditionTrue, string(result),
-		"ConfigMap is up to date")
-	r.setCondition(
-		ctx, cr,
-		"Synced", metav1.ConditionTrue, "ConfigMapSynced",
-		"CR Spec has been applied")
-	r.setReady(ctx, cr, true, "Ready")
-	if err := r.Status().Update(ctx, cr); err != nil {
-		return utils.Reconciled()
+	// ===========================
+	// Phase 2: 处理 Delete (Implicit Deletion)
+	// ===========================
+	// 此时 desiredServiceNames 包含了 CR 里所有的 Service
+	// 调用 NeedRemovedService 找出那些 "Cache 里有但 CR 里没有" 的服务
+	removedServices := r.XDSManager.NeedRemovedService(desiredServiceNames...)
+	for _, rmSvc := range removedServices {
+		// 这里的 rmSvc 已经在 NeedRemovedService 内部被 delete(cache) 了
+		// 只需要生成 Remove 事件通知 Debouncer -> Pusher
+		// 生成所有类型的删除事件 (因为 Service 删了，CDS/RDS/EDS 都应该删)
+		dirtyEvents = append(dirtyEvents, NewEvent(TypeCDS, rmSvc))
+		dirtyEvents = append(dirtyEvents, NewEvent(TypeRDS, rmSvc))
+		dirtyEvents = append(dirtyEvents, NewEvent(TypeEDS, rmSvc))
+	}
+	return dirtyEvents
+}
+
+func (r *LLMRouterConfigReconciler) DeleteXDSCache(backends *configv1alpha1.BackendConfig) {
+	serviceNames := make([]string, 0, len(backends.Backends))
+	for _, backend := range backends.Backends {
+		serviceName := backend.Name
+		serviceNames = append(serviceNames, serviceName)
+	}
+	r.XDSManager.DeleteXDSs(serviceNames...)
+}
+func (r *LLMRouterConfigReconciler) reconcileDelete(ctx context.Context, cr *configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
+	if controllerutil.ContainsFinalizer(cr, finalizer) {
+		// 逻辑删除
+		r.DeleteXDSCache(cr.Spec.Backends)
+		log.FromContext(ctx).Info("delete Configmap")
+		controllerutil.RemoveFinalizer(cr, finalizer)
+		if err := r.Update(ctx, cr); err != nil {
+			return utils.RequeueErrCheck(ctx, err, "can't removefinalizer")
+		}
+		log.FromContext(ctx).Info("remove fianlizer field")
 	}
 	return utils.Reconciled()
 }
@@ -190,96 +216,14 @@ func (r *LLMRouterConfigReconciler) setReady(ctx context.Context, cr *configv1al
 	}
 	r.setCondition(ctx, cr, "Ready", status, reason, "")
 }
-func (r *LLMRouterConfigReconciler) reconcileDelete(ctx context.Context, cr *configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
-	if controllerutil.ContainsFinalizer(cr, finalizer) {
-		cmName := cr.Status.ConfigMapName
-		if cmName != "" {
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      cmName,
-					Namespace: cr.Namespace,
-				},
-			}
-			_ = r.Delete(ctx, cm) // Ignore NotFound
-			log.FromContext(ctx).Info("delete Configmap", "ConfigMapName", cmName)
-		}
-		controllerutil.RemoveFinalizer(cr, finalizer)
-		if err := r.Update(ctx, cr); err != nil {
-			return utils.RequeueErrCheck(ctx, err, "can't removefinalizer")
-		}
-		log.FromContext(ctx).Info("remove fianlizer field")
-	}
-	return utils.Reconciled()
-}
-func (r *LLMRouterConfigReconciler) reconcileFinalizer(ctx context.Context, cr configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
-	if !controllerutil.ContainsFinalizer(&cr, finalizer) {
-		controllerutil.AddFinalizer(&cr, finalizer)
-		if err := r.Update(ctx, &cr); err != nil {
-			return utils.RequeueErr(ctx, err, "add finalizer, but has error")
-		}
-		return utils.Requeue()
-	}
-	return utils.Reconciled()
-}
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LLMRouterConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// 设置反向索引
-	if err := mgr.GetCache().IndexField(
-		context.Background(),
-		&configv1alpha1.LLMRouterConfig{},
-		configMapPath,
-		func(o client.Object) []string {
-			cfg, ok := o.(*configv1alpha1.LLMRouterConfig)
-			if !ok || cfg.Spec.ConfigMapName == "" {
-				return nil
-			}
-			return []string{cfg.Spec.ConfigMapName}
-		},
-	); err != nil {
-		return err
-	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&configv1alpha1.LLMRouterConfig{}).
 		Named("llmrouterconfig").
-		Watches(
-			&corev1.ConfigMap{},
-			// r.Watcher,
-			handler.EnqueueRequestsFromMapFunc(r.mapConfigMaptoRouters),
-		).
+		// 当CRD的Spec在Controller中的检测到发生变化就触发
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
-}
-
-func (r *LLMRouterConfigReconciler) mapConfigMaptoRouters(
-	ctx context.Context,
-	obj client.Object,
-) []reconcile.Request {
-	cm, ok := obj.(*corev1.ConfigMap)
-	if !ok {
-		return nil
-	}
-	var llmRouterConfigList configv1alpha1.LLMRouterConfigList
-
-	// 利用indexer获取CR list
-	if err := r.List(
-		ctx,
-		&llmRouterConfigList,
-		client.MatchingFields{
-			configMapPath: cm.Name,
-		},
-	); err != nil {
-		return nil
-	}
-	// 遍历获取到的CR实例列表，并对它们依次发起reconcile.Request设置
-	// 后续由handler加入到queue中
-	reqs := make([]reconcile.Request, 0, len(llmRouterConfigList.Items))
-	for _, cfg := range llmRouterConfigList.Items {
-		reqs = append(reqs, reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Namespace: cfg.Namespace,
-				Name:      cfg.Name,
-			},
-		})
-	}
-	return reqs
 }

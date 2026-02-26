@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -59,7 +61,7 @@ func NewOpenAIOutBoundAdapter() OutboundAdapter {
 func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core.LLMRequest, cfg *config.RuntimeBackend) (*http.Request, error) {
 
 	// Got backend uri
-	e, err := cfg.EndpointSelector.Select(cfg.Capabilty.Endpoints)
+	e, err := cfg.EndpointSelector.Select(cfg.GetEndpoints())
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +83,8 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 	// Headers content-type specify body format
 	forwardReq.Header.Set("Content-Type", "application/json")
 	// header passthrough
-	for k, v := range req.Headers {
-		forwardReq.Header[k] = v
-	}
+	// todo: some header need filter
+	maps.Copy(forwardReq.Header, req.Headers)
 	// stream way need handler
 	if req.Stream != nil && *req.Stream {
 		forwardReq.Header.Set("Accept", "text/event-stream")
@@ -144,6 +145,15 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 		// avert client request interruptions,need using the request context
 		select {
 		case <-ctx.Done():
+			// 此时可以获取err，然后判断错误类型并打印
+			err := ctx.Err()
+			if errors.Is(err, context.Canceled) {
+				slog.Warn("client cancel the request")
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				slog.Warn("request deadline exceeded")
+			} else {
+				slog.Warn("client connection closed", "err", err.Error())
+			}
 			return core.ErrClientCancel
 		default:
 		}
@@ -161,7 +171,7 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 			if err != io.EOF {
 				return err
 			}
-			break
+			break // io.EOF
 		}
 	}
 	return nil

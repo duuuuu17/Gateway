@@ -38,6 +38,7 @@ func (r *SelectorRegistry) Registry(strategy string, f func() EndpointSelector) 
 	r.factories[strategy] = f
 }
 
+// 轮询
 type RoundRobinSelector struct {
 	RRIndex atomic.Uint64 // RoundRobin Index
 }
@@ -52,6 +53,7 @@ func (rr *RoundRobinSelector) Select(endpoints []*Endpoint) (*Endpoint, error) {
 	return endpoint, nil
 }
 
+// 最少连接数
 type LeastConnSelector struct{}
 
 func (le *LeastConnSelector) Select(endpoints []*Endpoint) (*Endpoint, error) {

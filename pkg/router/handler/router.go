@@ -19,7 +19,7 @@ import (
 )
 
 type Router struct {
-	cfgs            config.ConfigReader
+	cfgs            config.RouterConfig
 	backendSelector BackendSelectorRegistry
 	inbounds        InboundRegistry  // router 获取inbound适配器
 	outbound        OutboundRegistry // router获取outbound适配器
@@ -47,8 +47,8 @@ type ErrorsRegistry interface {
 // 由main函数调用的初始化函数
 // 初始化参数聚合，更符合后续工程项目的测试要爱方便
 type RouterDeps struct {
-	Configs         config.ConfigReader
-	backendSelector BackendSelectorRegistry
+	Configs         config.RouterConfig
+	BackendSelector BackendSelectorRegistry
 	Inbound         InboundRegistry
 	Outbound        OutboundRegistry
 	Forward         core.Forward
@@ -58,17 +58,12 @@ type RouterDeps struct {
 func NewRouter(dep RouterDeps) *Router {
 	return &Router{
 		cfgs:            dep.Configs,
-		backendSelector: dep.backendSelector,
+		backendSelector: dep.BackendSelector,
 		outbound:        dep.Outbound,
 		inbounds:        dep.Inbound,
 		forwarder:       dep.Forward,
 		errhandlers:     dep.ErrsHandleMap,
 	}
-}
-
-// 调试函数
-func (r *Router) GetConfigs() config.ConfigReader {
-	return r.cfgs
 }
 
 // 实际执行Http处理逻辑
@@ -116,7 +111,7 @@ func (r *Router) HandleFunc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// 业务逻辑过滤Service级，得到选择的候选者
-	// 当前仅支持Canary, A/B Test
+	// 当前仅支持Canary, AlwaysPickFirst
 	strategy := core.ResolveStrategy(llmRequest)
 	podEndpointFilter, err := r.backendSelector.GetFilter(strategy)
 	if err != nil {

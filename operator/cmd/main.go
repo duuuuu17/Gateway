@@ -20,14 +20,15 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -37,6 +38,7 @@ import (
 
 	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
 	"github.com/duuuuu17/llm-router-operator/internal/controller"
+	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	webhookv1alpha1 "github.com/duuuuu17/llm-router-operator/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
@@ -101,6 +103,18 @@ func main() {
 
 	if !enableHTTP2 {
 		tlsOpts = append(tlsOpts, disableHTTP2)
+	}
+	window := 500 * time.Millisecond
+	pushCh := llmrouterxds.NewChanDebouncer(window)
+	// initalize XDSController
+	xdsController := llmrouterxds.NewXDSStorage()
+	// start grpc server && registry LLMRouterServer in grpc
+	grpcLogger := ctrl.Log.WithName("grpc-server")
+	respVersionCache := llmrouterxds.NewRespVersionCache(15)
+	llmRouterxdsServer, err := NewRPCListenerAndRegistryLLMRouterxDS(grpcLogger, ":50051", xdsController, pushCh, respVersionCache)
+	if err != nil {
+		grpcLogger.Error(err, "can't establish grpc listener", err.Error())
+		return
 	}
 
 	// Initial webhook TLS options
@@ -178,14 +192,18 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
+	// CR reconciler, Responsible for CDS/RDS
 	if err := (&controller.LLMRouterConfigReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Logger:     ctrl.Log.WithName("cr reconciler"),
+		Debouncer:  pushCh,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		XDSManager: xdsController,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LLMRouterConfig")
 		os.Exit(1)
 	}
+
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err := webhookv1alpha1.SetupLLMRouterConfigWebhookWithManager(mgr); err != nil {
@@ -193,6 +211,18 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	// EDS Reconciler， Responsible for EDS
+	if err := (&controller.EndpointSliceReconciler{
+		Logger: ctrl.Log.WithName("endpointslice reconciler"),
+
+		XDSManager: xdsController,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "EndpointSlice")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -204,9 +234,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	mgrCtx := ctrl.SetupSignalHandler()
+
+	setupLog.Info("starting grpc pushEvent handler")
+	go llmRouterxdsServer.LoopHandlePushEventDispatchBus(mgrCtx)
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(mgrCtx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
+	GRPCSever.GracefulStop() // grpc server 优雅退出
 }
