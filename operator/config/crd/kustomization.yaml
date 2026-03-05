@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/config.llm-router.example.io_llmrouterconfigs.yaml
+- bases/tenant.llm-router.example.io_tenantpipelines.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

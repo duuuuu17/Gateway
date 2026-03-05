@@ -90,6 +90,7 @@ type Routing struct {
 
 	// Selectors is a list of routing strategies to use
 	// +optional
+	// +kubebuilder:validation:Enum=round_robin;weighted;least_connections
 	Selector string `json:"selector,omitempty" yaml:"selector,omitempty"`
 	// +optional
 	Region string `json:"region,omitempty" yaml:"region,omitempty"`
@@ -108,8 +109,7 @@ type Routing struct {
 // +k8s:deepcopy-gen=true
 type BackendConfig struct {
 	// Backends is a list of backend configurations
-	// +optional
-	// +kubebuilder:validation:Enum=round_robin;weighted;least_connections
+	// +required
 	Backends []Backend `json:"backends,omitempty" yaml:"backends,omitempty"`
 }
 
@@ -117,11 +117,12 @@ type BackendConfig struct {
 // +k8s:deepcopy-gen=true
 type LLMRouterConfigSpec struct {
 	// Backends defines the backend configurations for the LLM router
-	// +optional
+	// +required
 	Backends *BackendConfig `json:"backends,omitempty" yaml:"backends,omitempty"`
 	// ConfigMapName specifies the name of the ConfigMap to store the router configuration
 	// +kubebuilder:default=config.yaml
 	// +kubebuilder:validation:Required
+	// +optional
 	ConfigMapName string `json:"configMapName" yaml:"configMapName"`
 }
 

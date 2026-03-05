@@ -20,6 +20,7 @@ const (
 	EDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment"
 	CDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterCluster"
 	RDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterRouting"
+	TDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig"
 )
 
 // 每个 xDS 类型的客户端状态（按 TypeUrl 粒度）
@@ -31,26 +32,32 @@ type XDSClientTypeState struct {
 type StreamClient struct {
 	NodeID string
 
-	Conn   *grpc.ClientConn                                                        // 连接
-	ADS    llmrouterxds.AggregatedDiscoveryServiceClient                           // client
-	Stream llmrouterxds.AggregatedDiscoveryService_StreamAggregatedResourcesClient // stream
+	Conn      *grpc.ClientConn                                                        // 连接
+	ADSClient llmrouterxds.AggregatedDiscoveryServiceClient                           // client
+	Stream    llmrouterxds.AggregatedDiscoveryService_StreamAggregatedResourcesClient // stream
 
 	mu    sync.Mutex
 	Types map[string]*XDSClientTypeState // key: type_url，例如 string(EDSType)
 
 	// 指向 Router 运行时配置信息（控制面推送 → RuntimeBackend）
 	Router           *config.RouterConfig
+	TenantCfg        *config.TenantCfg
 	SelectorRegistry *config.SelectorRegistry
 }
+type StreamClientDependencies struct {
+	Endpoint         string
+	RouterCfg        *config.RouterConfig
+	SelectorRegistry *config.SelectorRegistry
+	TenantCfg        *config.TenantCfg
+}
 
-func NewStreamClient(ctx context.Context, endpoint string,
-	routerCfg *config.RouterConfig, SelectorRegistry *config.SelectorRegistry) *StreamClient {
+func NewStreamClient(ctx context.Context, dep *StreamClientDependencies) *StreamClient {
 
 	sc := &StreamClient{}
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
-	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(
+	conn, err := grpc.NewClient(dep.Endpoint, grpc.WithTransportCredentials(
 		insecure.NewCredentials(),
 	))
 	if err != nil {
@@ -58,13 +65,14 @@ func NewStreamClient(ctx context.Context, endpoint string,
 	}
 	client := llmrouterxds.NewAggregatedDiscoveryServiceClient(conn)
 	sc.Conn = conn
-	sc.ADS = client
-	stream, err := client.StreamAggregatedResources(ctx)
+	sc.ADSClient = client
+	stream, err := client.StreamAggregatedResources(ctx) // 获取双向流函数的stream对象
 	sc.Stream = stream
 	sc.Types = make(map[string]*XDSClientTypeState)
-	sc.SelectorRegistry = SelectorRegistry
-	sc.Router = routerCfg
+	sc.SelectorRegistry = dep.SelectorRegistry
+	sc.Router = dep.RouterCfg
 	sc.NodeID = uuid.NewString() + time.Now().String()
+	sc.TenantCfg = dep.TenantCfg
 	go sc.HandleLoop(ctx)
 	return sc
 }

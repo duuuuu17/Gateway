@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 	// TODO (user): Add any additional imports if needed
 )
 

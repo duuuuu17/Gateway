@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-gateway-bootstrap
+data:
+  bootstrap.yaml: |
+    tenants:
+      default:
+        pre_routing:
+          - name: rate_limit
+            config:
+              daily_limit: 3

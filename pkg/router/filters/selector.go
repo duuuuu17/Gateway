@@ -2,13 +2,12 @@ package filters
 
 import (
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
-	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 )
 
 type CandidatesFilter interface {
 	Filter(candidates []*config.RuntimeBackend) (*config.RuntimeBackend, error)
 }
-
 type SelectorRegistry struct {
 	m map[string]CandidatesFilter
 }
@@ -28,7 +27,7 @@ func (sr *SelectorRegistry) GetFilter(strategy string) (CandidatesFilter, error)
 	}
 	s, ok := sr.m[strategy]
 	if !ok {
-		return &PickFirstFilterPlicy{}, core.ErrBackend5xx
+		return &PickFirstFilterPlicy{}, errs.ErrBackend5xx
 	}
 	return s, nil
 }

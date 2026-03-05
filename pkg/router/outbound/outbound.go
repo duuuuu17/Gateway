@@ -5,12 +5,18 @@ import (
 	"net/http"
 
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
-
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 )
 
+// 适配器
 type OutboundAdapter interface {
 	BuildHTTPRequest(context.Context, *core.LLMRequest, *config.RuntimeBackend) (*http.Request, error)
+	// todo: Segregation of duties(SOD)
+	// OutBound: Receive Backend response, And Parse the response to the Immediately LLMResponse
+	//  Func: ParseBackendRsponse(ctx, *http.Response)error
+	// Forward: Transform LLMResponse to the http.Response
+	//  Func: WriteClientResponse(ctx,LLMResponse,http.WriterResponse) error
 	HandleResponse(context.Context, http.ResponseWriter, *http.Response) error
 }
 
@@ -42,5 +48,5 @@ func (br *OutboundRegistry) GetAdapter(protocols []string) (OutboundAdapter, err
 		}
 		return adapter, nil
 	}
-	return nil, core.ErrNotMatchingBackend
+	return nil, errs.ErrNotMatchingBackend
 }

@@ -50,7 +50,7 @@ func (r *EndpointSliceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// log := logf.FromContext(ctx)
 	var eps discoveryv1.EndpointSlice
 	if err := r.Get(ctx, req.NamespacedName, &eps); err != nil {
-		msg := fmt.Sprintf("Failedt to get EndpointSlice, error: %w", err)
+		msg := fmt.Sprintf("Failedt to get EndpointSlice, error: %s", err.Error())
 		return utils.RequeueErrCheck(ctx, err, msg)
 	}
 	svcName := eps.Labels["kubernetes.io/service-name"]

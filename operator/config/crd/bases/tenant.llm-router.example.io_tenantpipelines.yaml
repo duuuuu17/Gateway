@@ -4,30 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: llmrouterconfigs.config.llm-router.example.io
+  name: tenantpipelines.tenant.llm-router.example.io
 spec:
-  group: config.llm-router.example.io
+  group: tenant.llm-router.example.io
   names:
-    kind: LLMRouterConfig
-    listKind: LLMRouterConfigList
-    plural: llmrouterconfigs
-    singular: llmrouterconfig
+    kind: TenantPipeline
+    listKind: TenantPipelineList
+    plural: tenantpipelines
+    singular: tenantpipeline
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.synced
-      name: Synced
-      type: boolean
-    - jsonPath: .status.configMapName
-      name: ConfigMap
-      type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: Age
-      type: date
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: LLMRouterConfig is the Schema for the llmrouterconfigs API
+        description: TenantPipeline is the Schema for the tenantpipelines API
         properties:
           apiVersion:
             description: |-
@@ -47,102 +37,54 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of LLMRouterConfig
+            description: spec defines the desired state of TenantPipeline
             properties:
-              backends:
-                description: Backends defines the backend configurations for the LLM
-                  router
+              enabled:
+                type: boolean
+              pipeline:
                 properties:
-                  backends:
-                    description: Backends is a list of backend configurations
+                  post_routing:
                     items:
-                      description: Backend represents a single backend configuration
                       properties:
-                        capability:
-                          description: Capability describes the capabilities of the
-                            backend
-                          properties:
-                            endpoints:
-                              description: Endpoints is a list of API endpoints
-                              items:
-                                type: string
-                              type: array
-                            models:
-                              description: Models is a list of supported model names
-                              items:
-                                type: string
-                              type: array
-                            port:
-                              description: specify port
-                              properties:
-                                name:
-                                  type: string
-                                number:
-                                  format: int32
-                                  type: integer
-                              required:
-                              - name
-                              - number
-                              type: object
-                            protocols:
-                              description: Protocols is a list of supported protocols
-                              items:
-                                type: string
-                              type: array
-                            streaming:
-                              default: false
-                              description: Streaming indicates whether the backend
-                                supports streaming responses
-                              type: boolean
+                        config:
                           type: object
+                          x-kubernetes-preserve-unknown-fields: true
                         name:
-                          description: Name is the unique identifier for the backend
                           type: string
-                        routing:
-                          description: Routing defines the routing configuration for
-                            the backend
-                          properties:
-                            priority:
-                              description: Priority determines the order of preference
-                              format: int32
-                              type: integer
-                            region:
-                              type: string
-                            selector:
-                              description: Selectors is a list of routing strategies
-                                to use
-                              enum:
-                              - round_robin
-                              - weighted
-                              - least_connections
-                              type: string
-                            weight:
-                              description: Weight is the relative weight for load
-                                balancing
-                              format: int32
-                              type: integer
-                          type: object
                       required:
                       - name
                       type: object
                     type: array
-                required:
-                - backends
+                  pre_routing:
+                    items:
+                      properties:
+                        config:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
                 type: object
-              configMapName:
-                default: config.yaml
-                description: ConfigMapName specifies the name of the ConfigMap to
-                  store the router configuration
-                type: string
             required:
-            - backends
-            - configMapName
+            - pipeline
             type: object
           status:
-            description: status defines the observed state of LLMRouterConfig
+            description: status defines the observed state of TenantPipeline
             properties:
               conditions:
-                description: 错误信息
+                description: |-
+                  conditions represent the current state of the TenantPipeline resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
+
+                  Standard condition types include:
+                  - "Available": the resource is fully functional
+                  - "Progressing": the resource is being created or updated
+                  - "Degraded": the resource failed to reach or maintain its desired state
+
+                  The status of each condition is one of True, False, or Unknown.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -201,18 +143,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              configDataHash:
-                description: 得到configmap的datahash值
-                type: string
-              configMapName:
-                description: 由Controller创建的ConfigMap的名称
-                type: string
-              synced:
-                description: 是否同步到ConfigMap
-                type: boolean
-            required:
-            - configDataHash
-            - synced
             type: object
         required:
         - spec

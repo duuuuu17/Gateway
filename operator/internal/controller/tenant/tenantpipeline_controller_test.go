@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package tenant
 
 import (
 	"context"
@@ -27,10 +27,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	tenantv1alpha1 "github.com/duuuuu17/llm-router-operator/api/tenant/v1alpha1"
 )
 
-var _ = Describe("LLMRouterConfig Controller", func() {
+var _ = Describe("TenantPipeline Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("LLMRouterConfig Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		llmrouterconfig := &configv1alpha1.LLMRouterConfig{}
+		tenantpipeline := &tenantv1alpha1.TenantPipeline{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind LLMRouterConfig")
-			err := k8sClient.Get(ctx, typeNamespacedName, llmrouterconfig)
+			By("creating the custom resource for the Kind TenantPipeline")
+			err := k8sClient.Get(ctx, typeNamespacedName, tenantpipeline)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &configv1alpha1.LLMRouterConfig{
+				resource := &tenantv1alpha1.TenantPipeline{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,16 +59,16 @@ var _ = Describe("LLMRouterConfig Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &configv1alpha1.LLMRouterConfig{}
+			resource := &tenantv1alpha1.TenantPipeline{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance LLMRouterConfig")
+			By("Cleanup the specific resource instance TenantPipeline")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &LLMRouterConfigReconciler{
+			controllerReconciler := &TenantPipelineReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

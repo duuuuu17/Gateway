@@ -6,6 +6,7 @@ cliVersion: 4.10.1
 domain: llm-router.example.io
 layout:
 - go.kubebuilder.io/v4
+multigroup: true
 projectName: operator
 repo: github.com/duuuuu17/llm-router-operator
 resources:
@@ -16,7 +17,7 @@ resources:
   domain: llm-router.example.io
   group: config
   kind: LLMRouterConfig
-  path: github.com/duuuuu17/llm-router-operator/api/v1alpha1
+  path: github.com/duuuuu17/llm-router-operator/api/config/v1alpha1
   version: v1alpha1
   webhooks:
     conversion: true
@@ -28,4 +29,13 @@ resources:
   group: discovery.k8s.io
   kind: EndpointSlice
   version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: llm-router.example.io
+  group: tenant
+  kind: TenantPipeline
+  path: github.com/duuuuu17/llm-router-operator/api/tenant/v1alpha1
+  version: v1alpha1
 version: "3"

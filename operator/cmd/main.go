@@ -36,10 +36,12 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
-	"github.com/duuuuu17/llm-router-operator/internal/controller"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
+	tenantv1alpha1 "github.com/duuuuu17/llm-router-operator/api/tenant/v1alpha1"
+	configcontroller "github.com/duuuuu17/llm-router-operator/internal/controller/config"
+	tenantcontroller "github.com/duuuuu17/llm-router-operator/internal/controller/tenant"
 	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
-	webhookv1alpha1 "github.com/duuuuu17/llm-router-operator/internal/webhook/v1alpha1"
+	webhookv1alpha1 "github.com/duuuuu17/llm-router-operator/internal/webhook/config/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -52,6 +54,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(configv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(tenantv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -193,7 +196,7 @@ func main() {
 		os.Exit(1)
 	}
 	// CR reconciler, Responsible for CDS/RDS
-	if err := (&controller.LLMRouterConfigReconciler{
+	if err := (&configcontroller.LLMRouterConfigReconciler{
 		Logger:     ctrl.Log.WithName("cr reconciler"),
 		Debouncer:  pushCh,
 		Client:     mgr.GetClient(),
@@ -212,7 +215,7 @@ func main() {
 		}
 	}
 	// EDS Reconciler， Responsible for EDS
-	if err := (&controller.EndpointSliceReconciler{
+	if err := (&configcontroller.EndpointSliceReconciler{
 		Logger: ctrl.Log.WithName("endpointslice reconciler"),
 
 		XDSManager: xdsController,
@@ -223,6 +226,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := (&tenantcontroller.TenantPipelineReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TenantPipeline")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

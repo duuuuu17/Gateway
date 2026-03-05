@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 )
 
 // nolint:unused

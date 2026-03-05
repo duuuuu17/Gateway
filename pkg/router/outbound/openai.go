@@ -14,6 +14,7 @@ import (
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -33,7 +34,7 @@ type openAIMessage struct {
 
 func buildOpenAIBody(req *core.LLMRequest) (*OpenAIChatCompletionBody, error) {
 	if req.Prompt == "" && len(req.Messages) == 0 {
-		return nil, core.ErrInvalidRequest
+		return nil, errs.ErrInvalidRequest
 	}
 	msgs := make([]openAIMessage, 0, len(req.Messages))
 	for _, m := range req.Messages {
@@ -96,7 +97,7 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.ResponseWriter, resp *http.Response) error {
 	select {
 	case <-ctx.Done():
-		return core.ErrClientCancel
+		return errs.ErrClientCancel
 	default:
 	}
 	ctx, span := otel.Tracer("outbound").Start(ctx, "outbound.handleResponse", trace.WithAttributes(attribute.Int("statusCode", resp.StatusCode)))
@@ -106,12 +107,12 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.Resp
 		http.Error(w, "the model can't handle, waitting minutes!", 500)
 		metrics.BackendErrorsTotal.WithLabelValues(ctx.Value("x-model").(string), resp.Status).Inc()
 
-		return core.ErrBackend5xx
+		return errs.ErrBackend5xx
 	}
 	if resp.StatusCode >= 400 {
 		http.Error(w, "the model can't handle, waitting minutes!", 400)
 		metrics.BackendErrorsTotal.WithLabelValues(ctx.Value("x-model").(string), resp.Status).Inc()
-		return core.ErrBackend4xx
+		return errs.ErrBackend4xx
 	}
 	defer resp.Body.Close()
 	// write header to response client
@@ -138,7 +139,7 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.Resp
 func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.ResponseWriter, resp *http.Response) error {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		return core.ErrStreamUnsupport
+		return errs.ErrStreamUnsupport
 	}
 	buf := make([]byte, 4096)
 	for {
@@ -154,7 +155,7 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 			} else {
 				slog.Warn("client connection closed", "err", err.Error())
 			}
-			return core.ErrClientCancel
+			return errs.ErrClientCancel
 		default:
 		}
 		n, err := resp.Body.Read(buf) // 读取body

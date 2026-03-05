@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 	"go.yaml.in/yaml/v3"
 )
 

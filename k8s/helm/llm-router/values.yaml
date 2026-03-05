@@ -132,7 +132,10 @@ readinessProbe:
   httpGet:
     path: /
     port: http
-
+# container Env variables
+env:
+  - name: BOOTSTRAP_FILE_PATH
+    value: "/etc/gateway/bootstrap.yaml"
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
   enabled: false
@@ -142,17 +145,16 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+volumes: #[]
+  - name: config
+    configMap:
+      name: llm-gateway-bootstrap
 
 # Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+volumeMounts: #[]
+  - name: config
+    mountPath: "/etc/gateway"
+    readOnly: true
 
 nodeSelector: {}
 

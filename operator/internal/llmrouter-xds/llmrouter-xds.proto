@@ -4,6 +4,7 @@ package llmrouter.xds.v1alpha1;
 option go_package = "./llmrouterxds;llmrouterxds"; // 生成Go代码的包路径
 
 import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
 
 service AggregatedDiscoveryService {
   rpc StreamAggregatedResources(stream DiscoveryRequest)
@@ -58,4 +59,16 @@ message LLMRouterRouting{
     int32 weight = 2;
     int32 priority = 3;
     string region = 4;
+}
+// TDS
+message LLMRouterTenantPipelineConfig{
+  string tenant_id = 1;
+   bool enabled = 2;
+
+  repeated LLMRouterTenantPipelineStep tenant_pre_routing = 3;
+  repeated LLMRouterTenantPipelineStep tenant_post_routing = 4;
+}
+message LLMRouterTenantPipelineStep{
+  string plugin_name = 1; 
+  google.protobuf.Struct config = 2; // struct类型本身包含多种基本结构类型
 }

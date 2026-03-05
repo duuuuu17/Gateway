@@ -19,7 +19,7 @@ package controller
 import (
 	"context"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
 	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	"github.com/go-logr/logr"
@@ -84,15 +84,25 @@ func (r *LLMRouterConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	// Handle deletion
 	if !cfg.DeletionTimestamp.IsZero() {
+		// Ensure Finalizer, need deleted  others subresources
 		return r.reconcileDelete(ctx, &cfg)
 	}
 	// check wether finalizer is set
-	r.reconcileFinalizer(ctx, cfg)
+	reconcileResultFunc := r.reconcileFinalizer(ctx, cfg)
+	if reconcileResultFunc != nil {
+		return reconcileResultFunc()
+	}
+
+	// 防止CR并没有backends
+	if cfg.Spec.Backends == nil {
+		// 可以选择初始化一个空结构，或直接返回（取决于业务需求）
+		return ctrl.Result{}, nil
+	}
 	// need update servicename
 	events := r.UpdateReconcile(ctx, cfg.Spec.Backends)
-	// Ensure Finalizer, need deleted  others subresources
-	// r.reconcileFinalizer(ctx, cfg)
-
+	if events == nil {
+		return utils.Reconciled()
+	}
 	// 根据更新的服务和删除的服务列表构建事件并推送给debouncer
 	go r.pushXDSEvent(events)
 
@@ -114,7 +124,10 @@ func (r *LLMRouterConfigReconciler) GetMatchingLabelsEndpointSlice(ctx context.C
 	return &esList.Items[0]
 }
 func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backends *configv1alpha1.BackendConfig) (push []llmrouterxds.ReconcilerPushEvent) {
-
+	if backends == nil {
+		r.Logger.Info("Backends is nil, skipping reconciliation")
+		return nil
+	}
 	desiredServiceNames := make([]string, 0, len(backends.Backends))
 	// 用于收集本轮 Reconciler 发生缓存数据更新的服务列表
 	dirtyServices := make([]string, 0)

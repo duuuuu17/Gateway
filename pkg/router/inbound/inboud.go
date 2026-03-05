@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 )
 
 type InboundAdapter interface {
@@ -33,7 +34,7 @@ func (ad *InboundAdapterRegistry) GetAdapter(req *http.Request) (InboundAdapter,
 	if protocol != "" {
 		adapter, ok := ad.InboundAdapters[protocol]
 		if !ok {
-			return nil, core.ErrUnsupportProtocol
+			return nil, errs.ErrUnsupportProtocol
 		}
 		return adapter, nil
 	}
@@ -42,5 +43,5 @@ func (ad *InboundAdapterRegistry) GetAdapter(req *http.Request) (InboundAdapter,
 			return adapter, nil
 		}
 	}
-	return nil, core.ErrUnsupportProtocol
+	return nil, errs.ErrUnsupportProtocol
 }

@@ -2,7 +2,7 @@ package filters
 
 import (
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
-	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 )
 
 type PickFirstFilterPlicy struct{}
@@ -12,7 +12,7 @@ func NewPickFirstFilterPlicy() *PickFirstFilterPlicy {
 }
 func (m *PickFirstFilterPlicy) Filter(candidates []*config.RuntimeBackend) (*config.RuntimeBackend, error) {
 	if len(candidates) == 0 {
-		return nil, core.ErrNotMatchingBackend
+		return nil, errs.ErrNotMatchingBackend
 	}
 	return candidates[0], nil
 }

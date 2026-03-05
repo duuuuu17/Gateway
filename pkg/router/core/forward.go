@@ -11,9 +11,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type Forward interface {
-	Do(*http.Request) (*http.Response, error)
-}
 type HTTPForward struct {
 	http.Client
 }

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v6.33.2
-// source: pkg/config/llmrouter-xds/llmrouter-xds.proto
+// source: llmrouter-xds.proto
 
 package llmrouterxds
 
@@ -112,5 +112,5 @@ var AggregatedDiscoveryService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "pkg/config/llmrouter-xds/llmrouter-xds.proto",
+	Metadata: "llmrouter-xds.proto",
 }

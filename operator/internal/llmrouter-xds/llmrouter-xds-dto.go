@@ -1,6 +1,6 @@
 package llmrouterxds
 
-import configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+import configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 
 type ClusterSpec struct {
 	Name string `json:"name" yaml:"name"`

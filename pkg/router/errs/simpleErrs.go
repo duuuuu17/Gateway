@@ -1,4 +1,4 @@
-package core
+package errs
 
 import "errors"
 
@@ -10,4 +10,5 @@ var (
 	ErrClientCancel       = errors.New("Clietn connection interrupted")
 	ErrInvalidRequest     = errors.New("invalid request")
 	ErrStreamUnsupport    = errors.New("streaming unsupport. can't using http flusher!")
+	ErrNotSupportedTenant = errors.New("the tenant not be supported")
 )

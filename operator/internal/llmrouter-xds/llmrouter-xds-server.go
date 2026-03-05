@@ -59,6 +59,7 @@ const (
 	EDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment"
 	CDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterCluster"
 	RDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterRouting"
+	TDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig"
 )
 
 func NewLLMRouterXDSServer(logger logr.Logger, xdsStore XDSStore, pushCh Debouncer, respVersionCache CacheStreamAggregateResponses) *LLMRouterXDSServer {

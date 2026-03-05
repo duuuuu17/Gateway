@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v6.33.2
-// source: pkg/config/llmrouter-xds/llmrouter-xds.proto
+// source: llmrouter-xds.proto
 
 package llmrouterxds
 
@@ -41,7 +41,7 @@ type DiscoveryRequest struct {
 
 func (x *DiscoveryRequest) Reset() {
 	*x = DiscoveryRequest{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[0]
+	mi := &file_llmrouter_xds_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +53,7 @@ func (x *DiscoveryRequest) String() string {
 func (*DiscoveryRequest) ProtoMessage() {}
 
 func (x *DiscoveryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[0]
+	mi := &file_llmrouter_xds_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +66,7 @@ func (x *DiscoveryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryRequest.ProtoReflect.Descriptor instead.
 func (*DiscoveryRequest) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{0}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DiscoveryRequest) GetVersionInfo() string {
@@ -128,7 +128,7 @@ type DiscoveryResponse struct {
 
 func (x *DiscoveryResponse) Reset() {
 	*x = DiscoveryResponse{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[1]
+	mi := &file_llmrouter_xds_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -140,7 +140,7 @@ func (x *DiscoveryResponse) String() string {
 func (*DiscoveryResponse) ProtoMessage() {}
 
 func (x *DiscoveryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[1]
+	mi := &file_llmrouter_xds_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -153,7 +153,7 @@ func (x *DiscoveryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoveryResponse.ProtoReflect.Descriptor instead.
 func (*DiscoveryResponse) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{1}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DiscoveryResponse) GetVersionInfo() string {
@@ -208,7 +208,7 @@ type LLMRouterCluster struct {
 
 func (x *LLMRouterCluster) Reset() {
 	*x = LLMRouterCluster{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[2]
+	mi := &file_llmrouter_xds_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +220,7 @@ func (x *LLMRouterCluster) String() string {
 func (*LLMRouterCluster) ProtoMessage() {}
 
 func (x *LLMRouterCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[2]
+	mi := &file_llmrouter_xds_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +233,7 @@ func (x *LLMRouterCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterCluster.ProtoReflect.Descriptor instead.
 func (*LLMRouterCluster) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{2}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LLMRouterCluster) GetName() string {
@@ -282,7 +282,7 @@ type LLMRouterEndpointAssignment struct {
 
 func (x *LLMRouterEndpointAssignment) Reset() {
 	*x = LLMRouterEndpointAssignment{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[3]
+	mi := &file_llmrouter_xds_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +294,7 @@ func (x *LLMRouterEndpointAssignment) String() string {
 func (*LLMRouterEndpointAssignment) ProtoMessage() {}
 
 func (x *LLMRouterEndpointAssignment) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[3]
+	mi := &file_llmrouter_xds_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +307,7 @@ func (x *LLMRouterEndpointAssignment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterEndpointAssignment.ProtoReflect.Descriptor instead.
 func (*LLMRouterEndpointAssignment) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{3}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *LLMRouterEndpointAssignment) GetClusterName() string {
@@ -333,7 +333,7 @@ type LLMRouterEndpoint struct {
 
 func (x *LLMRouterEndpoint) Reset() {
 	*x = LLMRouterEndpoint{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[4]
+	mi := &file_llmrouter_xds_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -345,7 +345,7 @@ func (x *LLMRouterEndpoint) String() string {
 func (*LLMRouterEndpoint) ProtoMessage() {}
 
 func (x *LLMRouterEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[4]
+	mi := &file_llmrouter_xds_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -358,7 +358,7 @@ func (x *LLMRouterEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterEndpoint.ProtoReflect.Descriptor instead.
 func (*LLMRouterEndpoint) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{4}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LLMRouterEndpoint) GetAddress() string {
@@ -381,7 +381,7 @@ type LLMRouterRouting struct {
 
 func (x *LLMRouterRouting) Reset() {
 	*x = LLMRouterRouting{}
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[5]
+	mi := &file_llmrouter_xds_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -393,7 +393,7 @@ func (x *LLMRouterRouting) String() string {
 func (*LLMRouterRouting) ProtoMessage() {}
 
 func (x *LLMRouterRouting) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes[5]
+	mi := &file_llmrouter_xds_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -406,7 +406,7 @@ func (x *LLMRouterRouting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterRouting.ProtoReflect.Descriptor instead.
 func (*LLMRouterRouting) Descriptor() ([]byte, []int) {
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP(), []int{5}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LLMRouterRouting) GetClusterName() string {
@@ -437,11 +437,11 @@ func (x *LLMRouterRouting) GetRegion() string {
 	return ""
 }
 
-var File_pkg_config_llmrouter_xds_llmrouter_xds_proto protoreflect.FileDescriptor
+var File_llmrouter_xds_proto protoreflect.FileDescriptor
 
-const file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc = "" +
+const file_llmrouter_xds_proto_rawDesc = "" +
 	"\n" +
-	",pkg/config/llmrouter-xds/llmrouter-xds.proto\x12\x16llmrouter.xds.v1alpha1\x1a\x19google/protobuf/any.proto\"\xda\x01\n" +
+	"\x13llmrouter-xds.proto\x12\x16llmrouter.xds.v1alpha1\x1a\x19google/protobuf/any.proto\"\xda\x01\n" +
 	"\x10DiscoveryRequest\x12!\n" +
 	"\fversion_info\x18\x01 \x01(\tR\vversionInfo\x12\x19\n" +
 	"\btype_url\x18\x02 \x01(\tR\atypeUrl\x12%\n" +
@@ -476,19 +476,19 @@ const file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc = "" +
 	"\x19StreamAggregatedResources\x12(.llmrouter.xds.v1alpha1.DiscoveryRequest\x1a).llmrouter.xds.v1alpha1.DiscoveryResponse(\x010\x01B\x1dZ\x1b./llmrouterxds;llmrouterxdsb\x06proto3"
 
 var (
-	file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescOnce sync.Once
-	file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescData []byte
+	file_llmrouter_xds_proto_rawDescOnce sync.Once
+	file_llmrouter_xds_proto_rawDescData []byte
 )
 
-func file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescGZIP() []byte {
-	file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescOnce.Do(func() {
-		file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc), len(file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc)))
+func file_llmrouter_xds_proto_rawDescGZIP() []byte {
+	file_llmrouter_xds_proto_rawDescOnce.Do(func() {
+		file_llmrouter_xds_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_llmrouter_xds_proto_rawDesc), len(file_llmrouter_xds_proto_rawDesc)))
 	})
-	return file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDescData
+	return file_llmrouter_xds_proto_rawDescData
 }
 
-var file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_pkg_config_llmrouter_xds_llmrouter_xds_proto_goTypes = []any{
+var file_llmrouter_xds_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_llmrouter_xds_proto_goTypes = []any{
 	(*DiscoveryRequest)(nil),            // 0: llmrouter.xds.v1alpha1.DiscoveryRequest
 	(*DiscoveryResponse)(nil),           // 1: llmrouter.xds.v1alpha1.DiscoveryResponse
 	(*LLMRouterCluster)(nil),            // 2: llmrouter.xds.v1alpha1.LLMRouterCluster
@@ -497,7 +497,7 @@ var file_pkg_config_llmrouter_xds_llmrouter_xds_proto_goTypes = []any{
 	(*LLMRouterRouting)(nil),            // 5: llmrouter.xds.v1alpha1.LLMRouterRouting
 	(*anypb.Any)(nil),                   // 6: google.protobuf.Any
 }
-var file_pkg_config_llmrouter_xds_llmrouter_xds_proto_depIdxs = []int32{
+var file_llmrouter_xds_proto_depIdxs = []int32{
 	6, // 0: llmrouter.xds.v1alpha1.DiscoveryResponse.resources:type_name -> google.protobuf.Any
 	4, // 1: llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment.endpoints:type_name -> llmrouter.xds.v1alpha1.LLMRouterEndpoint
 	0, // 2: llmrouter.xds.v1alpha1.AggregatedDiscoveryService.StreamAggregatedResources:input_type -> llmrouter.xds.v1alpha1.DiscoveryRequest
@@ -509,26 +509,26 @@ var file_pkg_config_llmrouter_xds_llmrouter_xds_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_pkg_config_llmrouter_xds_llmrouter_xds_proto_init() }
-func file_pkg_config_llmrouter_xds_llmrouter_xds_proto_init() {
-	if File_pkg_config_llmrouter_xds_llmrouter_xds_proto != nil {
+func init() { file_llmrouter_xds_proto_init() }
+func file_llmrouter_xds_proto_init() {
+	if File_llmrouter_xds_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc), len(file_pkg_config_llmrouter_xds_llmrouter_xds_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_llmrouter_xds_proto_rawDesc), len(file_llmrouter_xds_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_pkg_config_llmrouter_xds_llmrouter_xds_proto_goTypes,
-		DependencyIndexes: file_pkg_config_llmrouter_xds_llmrouter_xds_proto_depIdxs,
-		MessageInfos:      file_pkg_config_llmrouter_xds_llmrouter_xds_proto_msgTypes,
+		GoTypes:           file_llmrouter_xds_proto_goTypes,
+		DependencyIndexes: file_llmrouter_xds_proto_depIdxs,
+		MessageInfos:      file_llmrouter_xds_proto_msgTypes,
 	}.Build()
-	File_pkg_config_llmrouter_xds_llmrouter_xds_proto = out.File
-	file_pkg_config_llmrouter_xds_llmrouter_xds_proto_goTypes = nil
-	file_pkg_config_llmrouter_xds_llmrouter_xds_proto_depIdxs = nil
+	File_llmrouter_xds_proto = out.File
+	file_llmrouter_xds_proto_goTypes = nil
+	file_llmrouter_xds_proto_depIdxs = nil
 }

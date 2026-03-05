@@ -5,6 +5,7 @@ import (
 
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 )
 
 // 筛选可用的后端并返回
@@ -21,7 +22,7 @@ func FilterCandidates(req *LLMRequest, cfgs config.RouterConfig) ([]*config.Runt
 		candidates = append(candidates, cfg)
 	}
 	if len(candidates) == 0 {
-		return nil, ErrNotMatchingBackend
+		return nil, errs.ErrNotMatchingBackend
 	}
 	return candidates, nil
 }

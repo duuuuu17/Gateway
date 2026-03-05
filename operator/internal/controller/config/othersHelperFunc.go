@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/v1alpha1"
+	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
 	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	corev1 "k8s.io/api/core/v1"
@@ -33,15 +33,21 @@ func NewEvent(typ, service string) llmrouterxds.ReconcilerPushEvent {
 	}
 	return llmrouterxds.ReconcilerPushEvent{}
 }
-func (r *LLMRouterConfigReconciler) reconcileFinalizer(ctx context.Context, cr configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
+func (r *LLMRouterConfigReconciler) reconcileFinalizer(ctx context.Context, cr configv1alpha1.LLMRouterConfig) func() (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(&cr, finalizer) {
 		controllerutil.AddFinalizer(&cr, finalizer)
 		if err := r.Update(ctx, &cr); err != nil {
-			return utils.RequeueErr(ctx, err, "add finalizer, but has error")
+			return func() (reconcile.Result, error) {
+				return utils.RequeueErr(ctx, err, "add finalizer, but has error")
+			}
 		}
-		return utils.Requeue()
+		// 第一次添加finalizer字段后，必须requeue重新协调一次
+		// 保证CR资源的resourceVersion最新
+		return func() (reconcile.Result, error) {
+			return utils.Requeue()
+		}
 	}
-	return utils.Reconciled()
+	return nil
 }
 func (r *LLMRouterConfigReconciler) NeedUpdate(cr *configv1alpha1.LLMRouterConfig, dataHash string) bool {
 	if cr.Status.ConfigDataHash == dataHash {
