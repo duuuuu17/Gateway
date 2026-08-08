@@ -2,7 +2,7 @@ name: Build and Push to ACR via OIDC
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 permissions:
   id-token: write   # 必须打开，才能请求 OIDC token
