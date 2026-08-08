@@ -13,30 +13,43 @@ jobs:
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: [operator, dataplane]
     steps:          
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          working-directory: ${{ matrix.directory }}
           
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          working-directory: ${{ matrix.directory }}
 
       - name: Check go fmt
+        working-directory: ${{ matrix.directory }}
         run: |
           if [ -n "$(gofmt -l .)" ]; then
-            echo "Go code is not formatted. Please run 'go fmt'."
+            echo "Go code is not formatted in ${{ matrix.directory }}. Please run 'go fmt'."
             exit 1
           fi
 
       - name: Run go vet
+        working-directory: ${{ matrix.directory }}
         run: go vet ./...
   # === Job 2: 单元测试 (并行执行) ===
   test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.directory }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        directory: [operator, dataplane]
     steps:
       - uses: actions/checkout@v4
       
@@ -44,18 +57,24 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+          working-directory: ${{ matrix.directory }}
           
       - name: Run Test
+        working-directory: ${{ matrix.directory }}
         run: go test -v -race -coverprofile=coverage.out ./...
 # === Job 3: build scan & push image 
   build-scan-push:
     name: Build & Trivy Scan
     runs-on: ubuntu-latest
     needs: [lint, test] # 核心逻辑：需要 lint 和 test 都成功后才执行
+    strategy:
+      matrix:
+        directory: [operator, dataplane]
     env:
       ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
       # CONTROLLER_IMAGE_NAME: ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}
-      IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/ ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}:${{ github.sha }}
+      # ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
+      IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}:${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,11 +85,11 @@ jobs:
       - name: Build Docker Image (Locally)
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ${{ matrix.directory }}
+          file: ./${{ matrix.directory }}/Dockerfile
           push: false
           tags: ${{ env.IMAGE }}
-          outputs: type=docker,dest=/tmp/test-go-app.tar # 导出镜像文件供Trivy使用
+          outputs: type=docker,dest=/tmp/test-go-app.tar # 导出镜像文件供Trivy使用,dest=/tmp/${{ matrix.directory }}.tar
       
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
@@ -92,7 +111,7 @@ jobs:
         id: acr-token
         # reference document: https://www.alibabacloud.com/help/zh/acr/user-guide/configure-access-credentials
         run: |
-          # 使用临时凭证调用 GetAuthorizationToken，获取 Registry 临时用户名和密码
+          # 使用临时凭证调用 GetAuthorizationToken, 获取 Registry 临时用户名和密码
           TEMP_JSON=$(aliyun cr GetAuthorizationToken \
             --endpoint "cr.${{ vars.ACR_REGION }}.aliyuncs.com" \
             --InstanceId "${{ vars.ACR_INSTANCE_ID }}" \
