@@ -1,0 +1,120 @@
+name: Build and Push to ACR via OIDC
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # 必须打开，才能请求 OIDC token
+  contents: read
+
+jobs:
+  # === Job 1: lint & fmt ===
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:          
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+      - name: Check go fmt
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Go code is not formatted. Please run 'go fmt'."
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+  # === Job 2: 单元测试 (并行执行) ===
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          
+      - name: Run Test
+        run: go test -v -race -coverprofile=coverage.out ./...
+# === Job 3: build scan & push image 
+  build-scan-push:
+    name: Build & Trivy Scan
+    runs-on: ubuntu-latest
+    needs: [lint, test] # 核心逻辑：需要 lint 和 test 都成功后才执行
+    env:
+      ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
+      # CONTROLLER_IMAGE_NAME: ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}
+      IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/ ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}:${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Docker Image (Locally)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ${{ env.IMAGE }}
+          outputs: type=docker,dest=/tmp/test-go-app.tar # 导出镜像文件供Trivy使用
+      
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          input: /tmp/test-go-app.tar # 扫描刚才导出的镜像
+          format: 'table'
+          exit-code: '1' # 发现漏洞则失败
+          severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
+      
+      - name: Configure Alibaba Cloud credentials (OIDC)
+        uses: aliyun/configure-aliyun-credentials-action@v1
+        # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
+        with:
+          role-to-assume: ${{ vars.ALIYUN_ROLE_ARN }} # RAM Role
+          oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
+          audience: 'sts.aliyuncs.com'   # 和 RAM OIDC IdP 的 Client ID 保持一致
+
+      - name: Login to ACR with temp token
+        id: acr-token
+        # reference document: https://www.alibabacloud.com/help/zh/acr/user-guide/configure-access-credentials
+        run: |
+          # 使用临时凭证调用 GetAuthorizationToken，获取 Registry 临时用户名和密码
+          TEMP_JSON=$(aliyun cr GetAuthorizationToken \
+            --endpoint "cr.${{ vars.ACR_REGION }}.aliyuncs.com" \
+            --InstanceId "${{ vars.ACR_INSTANCE_ID }}" \
+            --RegionId "${{ vars.ACR_REGION }}" \
+            --output cols=TempUsername,AuthorizationToken rows=1)
+          TEMP_USER=$(echo "$TEMP_JSON" | jq -r '.TempUsername')
+          TEMP_PASS=$(echo "$TEMP_JSON" | jq -r '.AuthorizationToken')
+          
+          # "${{ env.ACR_REGISTRY }}"
+          # 可选：设置输出供后续步骤使用
+          # 输出给 docker/login-action 使用
+          echo "user=${TEMP_USER}" >> "$GITHUB_OUTPUT"
+          echo "pass=${TEMP_PASS}" >> "$GITHUB_OUTPUT"
+      
+      # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
+      - name: Login to ACR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.ACR_NEWVERSION_REGISTRY }}
+          username: ${{ steps.acr-token.outputs.user }}
+          password: ${{ steps.acr-token.outputs.pass }}
+
+      - name: push image
+        run: |
+          docker push "${{ env.IMAGE }}"
