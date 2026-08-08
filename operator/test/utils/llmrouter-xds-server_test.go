@@ -88,8 +88,7 @@ func TestPushDelta_FirstSend(t *testing.T) {
 		AffectedServices: []string{"svc-a"},
 	}
 
-	err := server.PushDeltaResources(event)
-	require.NoError(t, err)
+	server.PushDeltaResources(event)
 
 	select {
 	case resp := <-client.SendCh:
@@ -122,8 +121,7 @@ func TestPushDelta_InFlightMerge(t *testing.T) {
 		AffectedServices: []string{"svc-b"},
 	}
 
-	err := server.PushDeltaResources(event)
-	require.NoError(t, err)
+	server.PushDeltaResources(event)
 
 	select {
 	case <-client.SendCh:
@@ -193,8 +191,7 @@ func TestACKTriggersPendingPush(t *testing.T) {
 		Type:             llmrouterxds.EDSType,
 		AffectedServices: []string{"svc-a"},
 	}
-	err := server.PushDeltaResources(event1)
-	require.NoError(t, err)
+	server.PushDeltaResources(event1)
 
 	// 收到第一次推送
 	var firstResp *llmrouterxds.DiscoveryResponse
@@ -214,8 +211,7 @@ func TestACKTriggersPendingPush(t *testing.T) {
 		Type:             llmrouterxds.EDSType,
 		AffectedServices: []string{"svc-b"},
 	}
-	err = server.PushDeltaResources(event2)
-	require.NoError(t, err)
+	server.PushDeltaResources(event2)
 
 	require.NotNil(t, state.PendingPush)
 	require.Contains(t, state.PendingPush.AffectedServices, "svc-b")

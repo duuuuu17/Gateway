@@ -197,9 +197,7 @@ func (s *XDSController) UpdateOrCreateCDS(serviceName string, cluster *LLMRouter
 // update EDS
 func (s *XDSController) UpdateOrCreateEDS(serviceName string, endpoints []*LLMRouterEndpoint) bool {
 	es := make([]*LLMRouterEndpoint, 0, len(endpoints))
-	for _, e := range endpoints {
-		es = append(es, e)
-	}
+	es = append(es, endpoints...)
 	s.EDSController.rwMutex.Lock()
 	defer s.EDSController.rwMutex.Unlock()
 
@@ -294,6 +292,8 @@ func (s *XDSController) DeleteRDSCache(key string) {
 	delete(s.RDSController.Resources, key)
 	s.RDSController.rwMutex.Unlock()
 }
+
+// nolint
 func getAllTenantIDs(tenants []*LLMRouterTenantPipelineConfig) []string {
 	removeTenantIDs := make([]string, 0, len(tenants))
 	for _, tenant := range tenants {

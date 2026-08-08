@@ -48,6 +48,8 @@ var (
 	k8sClient client.Client
 )
 
+const ns = "default"
+
 func TestControllers(t *testing.T) {
 	RegisterFailHandler(Fail)
 
@@ -80,7 +82,7 @@ var _ = BeforeSuite(func() {
 	CDS := &configv1alpha1.LLMRouterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-llmrouter-config",
-			Namespace: "default",
+			Namespace: ns,
 		},
 		Spec: configv1alpha1.LLMRouterConfigSpec{
 			Backends: &configv1alpha1.BackendConfig{

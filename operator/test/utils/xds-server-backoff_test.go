@@ -15,7 +15,7 @@ func TestNACKTriggersBackoff(t *testing.T) {
 		Type:             llmrouterxds.EDSType,
 		AffectedServices: []string{"svc-a"},
 	}
-	_ = server.PushDeltaResources(event)
+	server.PushDeltaResources(event)
 
 	resp := <-client.SendCh
 	t.Logf("mock server send resp to client, StreamAggregateResponse:%+v\n", resp)
@@ -29,7 +29,7 @@ func TestNACKTriggersBackoff(t *testing.T) {
 	state.LastNackAt = time.Now()
 	client.Mu.Unlock()
 	// 立刻再次推送（应被 backoff）
-	_ = server.PushDeltaResources(event)
+	server.PushDeltaResources(event)
 	t.Logf("Nack after ClientState:%+v PendingPush:%+v\n", state, state.PendingPush)
 	select {
 	case <-client.SendCh:
@@ -52,7 +52,7 @@ func TestBackoffExpires_AllowsPush(t *testing.T) {
 	}
 	client.Nonce[string(llmrouterxds.EDSType)] = state
 
-	_ = server.PushDeltaResources(event)
+	server.PushDeltaResources(event)
 
 	select {
 	case <-client.SendCh:

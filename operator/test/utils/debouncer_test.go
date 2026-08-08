@@ -26,8 +26,7 @@ import (
 )
 
 func TestDebouncerInstance(t *testing.T) {
-	var debouncer llmrouterxds.Debouncer
-	debouncer = llmrouterxds.NewChanDebouncer(500 * time.Millisecond)
+	debouncer := llmrouterxds.NewChanDebouncer(500 * time.Millisecond)
 	reconcilerEvents := make([]llmrouterxds.ReconcilerPushEvent, 0, 5)
 	for i := range 5 {
 		reconcilerEvents = append(reconcilerEvents, llmrouterxds.ReconcilerPushEvent{

@@ -35,10 +35,10 @@ var _ = Describe("LLMRouterConfig Controller", func() {
 		const resourceName = "test-resource"
 
 		ctx := context.Background()
-
+		const ns = "default"
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: ns, // TODO(user):Modify as needed
 		}
 		llmrouterconfig := &configv1alpha1.LLMRouterConfig{}
 
@@ -52,7 +52,7 @@ var _ = Describe("LLMRouterConfig Controller", func() {
 				resource := &configv1alpha1.LLMRouterConfig{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: ns,
 					},
 					// TODO(user): Specify other spec details if needed.
 					Spec: configv1alpha1.LLMRouterConfigSpec{

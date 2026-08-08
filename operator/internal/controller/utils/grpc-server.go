@@ -28,7 +28,7 @@ func NewRPCListenerAndRegistryLLMRouterxDS(log logr.Logger, port string,
 	}
 	// 设置grpc Server
 	GRPCSever = grpc.NewServer(
-		grpc.ChainUnaryInterceptor(unaryInterceptorSlog),      //一元拦截器（日志）
+		grpc.ChainUnaryInterceptor(unaryInterceptorSlog),      // 一元拦截器（日志）
 		grpc.ChainStreamInterceptor(streamLogInterceptorSlog), // 流拦截器（日志）
 	)
 

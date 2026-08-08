@@ -44,9 +44,8 @@ const (
 	TypeRDS       = "rds"
 )
 
-//todo: [finished]
 // CR Reconciler → CDS / RDS
-//EndpointSlice Informer → EDS
+// EndpointSlice Informer → EDS
 
 // LLMRouterConfigReconciler reconciles a LLMRouterConfig object
 type LLMRouterConfigReconciler struct {
@@ -133,9 +132,9 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 	}
 	desiredServiceNames := make([]string, 0, len(backends.Backends))
 	// 用于收集本轮 Reconciler 发生缓存数据更新的服务列表
-	dirtyServices := make([]string, 0)
+	// dirtyServices := make([]string, 0)
 	// 用于收集本轮 Reconcile 产生的需要推送的事件
-	dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0)
+	dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0, 1)
 	// 处理Create、updae还是delete本质是desire与current的serviceNames列表的集合进行比较
 	for _, backend := range backends.Backends {
 		serviceName := backend.Name
@@ -152,16 +151,16 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 		// ===========================
 		// Phase 1: 处理 Create 和 Update
 		// ===========================
-		isChange := false
+		// isChange := false
 		if r.XDSManager.UpdateOrCreateServiceConfig(serviceName, serviceCfg) {
-			isChange = true
+			// isChange = true
 		}
 		if r.XDSManager.UpdateOrCreateCDS(serviceName, cluster, serviceCfg) {
-			isChange = true
+			// isChange = true
 			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeCDS, serviceName, false))
 		}
 		if r.XDSManager.UpdateOrCreateRDS(serviceName, router, serviceCfg) {
-			isChange = true
+			// isChange = true
 			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeRDS, serviceName, false))
 		}
 		// 需要确认创建的eds,以及修改port时，需要主动推送
@@ -169,12 +168,12 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 		// r.Logger.Info("endpointslice", "[endpointslice]", es.Endpoints)
 		eds := ExtractReadyEndpointsFromEndpointSlice(*es, *serviceCfg)
 		if r.XDSManager.UpdateOrCreateEDS(serviceName, eds) {
-			isChange = true
+			// isChange = true
 			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeEDS, serviceName, false))
 		}
-		if isChange {
-			dirtyServices = append(dirtyServices, serviceName)
-		}
+		// if isChange {
+		// 	dirtyServices = append(dirtyServices, serviceName)
+		// }
 	}
 	// ===========================
 	// Phase 2: 处理 Delete (Implicit Deletion)
@@ -224,6 +223,7 @@ func (r *LLMRouterConfigReconciler) reconcileDelete(ctx context.Context, cr *con
 	return utils.Reconciled()
 }
 
+// nolint
 func (r *LLMRouterConfigReconciler) setCondition(ctx context.Context, cr *configv1alpha1.LLMRouterConfig,
 	conditionType string, status metav1.ConditionStatus, reason, msg string) {
 	meta.SetStatusCondition(&cr.Status.Conditions,
@@ -236,6 +236,8 @@ func (r *LLMRouterConfigReconciler) setCondition(ctx context.Context, cr *config
 			ObservedGeneration: cr.Generation, // 注意需要设置此时Controller中CR的配置数据版本
 		})
 }
+
+// nolint
 func (r *LLMRouterConfigReconciler) setReady(ctx context.Context, cr *configv1alpha1.LLMRouterConfig,
 	ready bool, reason string) {
 	status := metav1.ConditionFalse

@@ -128,7 +128,11 @@ func (s *LLMRouterXDSServer) StreamAggregatedResources(stream AggregatedDiscover
 	}
 	s.AddClient(req.NodeId, newClient)
 
-	s.PushResourcesSotW()
+	if err := s.PushResourcesSotW(); err != nil {
+		cancel()
+		return err
+	}
+
 	// 子协程接收Server发送的推送事件，减少Server阻塞，分散发送压力给实际每个客户端对象
 	// 任务处理的子协程退出有专用的关闭信号通道
 	go func() {
@@ -388,14 +392,13 @@ func (s *LLMRouterXDSServer) buildDeltaDiscoveryResponse(event XDSPushEvent) (*D
 }
 
 // 实现了单Inflight 机制和pendingPush
-func (s *LLMRouterXDSServer) PushDeltaResources(event XDSPushEvent) error {
+func (s *LLMRouterXDSServer) PushDeltaResources(event XDSPushEvent) {
 	s.rwMutex.RLock()
 	defer s.rwMutex.RUnlock()
 	// 在推送的同时，更新本次协调处理后的XDSController快照
 	for _, client := range s.clients {
 		s.dispatchPushEvent(client, event, s.buildDeltaDiscoveryResponse)
 	}
-	return nil
 }
 func (s *LLMRouterXDSServer) buildSToWDiscoveryResponse(event XDSPushEvent) (*DiscoveryResponse, error) {
 	var resources []proto.Message
@@ -447,6 +450,7 @@ func (s *LLMRouterXDSServer) PushResourcesSotW() error {
 }
 
 // 发送协程 (Send Worker) [deprecate]
+// nolint
 func (c *ClientState) sendLoop() {
 	for {
 		select {
@@ -457,6 +461,7 @@ func (c *ClientState) sendLoop() {
 		}
 	}
 }
+
 func transformerToAnyResource(resources ...proto.Message) ([]*anypb.Any, error) {
 	anyResources := make([]*anypb.Any, 0, len(resources))
 	for _, resource := range resources {

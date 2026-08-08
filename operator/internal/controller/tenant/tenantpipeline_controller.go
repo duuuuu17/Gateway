@@ -103,15 +103,15 @@ func (r *TenantPipelineReconciler) pushXDSEvent(events []llmrouterxds.Reconciler
 
 // upsert TDS
 func (r *TenantPipelineReconciler) Upsert(ctx context.Context, cr *tenantv1alpha1.TenantPipeline) ([]llmrouterxds.ReconcilerPushEvent, error) {
-	result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.ObjectMeta.UID)}, "/")
+	result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.UID)}, "/")
 	tenantsPipelineCfgDTO, err := llmrouterxds.NewTenantsDTO(cr)
 	if err != nil {
 		return nil, err
 	}
 	if !r.XDSManager.UpsertTDSByUID(tenantsPipelineCfgDTO.ToTenantPipeline()) {
-		return nil, fmt.Errorf("the tenants pipeline config same as TDS in the TDSController!")
+		return nil, fmt.Errorf("the tenants pipeline config same as TDS in the TDSController")
 	}
-	dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0)
+	dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0, 1)
 	// TDS直接根据TDS's UID执行全量替换
 	dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeTDS, result, false))
 
@@ -132,7 +132,7 @@ func (r *TenantPipelineReconciler) reconcileDelete(ctx context.Context, cr *tena
 	if controllerutil.ContainsFinalizer(cr, finalizer) {
 		// logic deletion
 		// namespace/name/uid作为indexer's key
-		result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.ObjectMeta.UID)}, "/")
+		result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.UID)}, "/")
 		r.Logger.Info("delete TDSCache", "tenant", result)
 		r.DeleteTDSCache(result)
 		controllerutil.RemoveFinalizer(cr, finalizer)
@@ -140,7 +140,7 @@ func (r *TenantPipelineReconciler) reconcileDelete(ctx context.Context, cr *tena
 			return utils.RequeueErrCheck(ctx, err, "can't removefinalizer")
 		}
 		r.Logger.Info("remove fianlizer field", "tenant-name", cr.Name, "tenant-namespace", cr.Namespace)
-		dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0)
+		dirtyEvents := make([]llmrouterxds.ReconcilerPushEvent, 0, 1)
 		dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeTDS, result, true))
 		go r.pushXDSEvent(dirtyEvents)
 	}

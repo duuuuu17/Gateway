@@ -83,7 +83,7 @@ func (d *ChanDebouncer) push(needUpdate map[XDSType]map[string]struct{}, needRem
 		updates := setToKeysSlice(upd)
 		removes := setToKeysSlice(rem)
 		d.out <- XDSPushEvent{
-			Type:             XDSType(typ),
+			Type:             typ,
 			AffectedServices: updates,
 			RemoveDService:   removes,
 			Full:             false, // delta push

@@ -36,10 +36,6 @@ func (s *XDSController) BuildSnapshot() bool {
 		RDS: CloneMap(s.RDSController.Resources),
 		EDS: CloneMap(s.EDSController.Resources),
 		TDS: CloneMap(s.TDSController.Resources),
-		// CDS: CloneCDS(s.CDSController.Resources),
-		// RDS: CloneRDS(s.RDSController.Resources),
-		// EDS: CloneEDS(s.EDSController.Resources),
-		// TDS: CloneTDS(s.TDSController.Resources),
 	}
 	s.snapshot.Store(snap)
 	return true
@@ -56,82 +52,9 @@ func CloneMap[T any](src map[string]T) SnapshotResource[T] {
 		} else {
 			dst[k] = v
 		}
-		// clone := reflect.TypeFor[T]().Elem()
-		// dst[k] =
 	}
 	maps.Copy(dst, src)
 	return SnapshotResource[T]{Resources: dst}
-}
-
-func CloneCDS(src map[string]*LLMRouterCluster) SnapshotResource[*LLMRouterCluster] {
-	dst := make(map[string]*LLMRouterCluster, len(src))
-	for k, v := range src {
-		if v == nil {
-			continue
-		}
-		// 必须复制底层数据！
-		clone := LLMRouterCluster{
-			LbStrategy: v.GetLbStrategy(),
-			Name:       v.GetName(),
-			Models:     v.GetModels(),
-			Protocols:  v.GetProtocols(),
-			Streaming:  v.GetStreaming(),
-		} // 如果 LLMRouterCluster 内部还有切片或指针，需要继续深拷贝
-		dst[k] = &clone
-	}
-	return SnapshotResource[*LLMRouterCluster]{Resources: dst}
-}
-
-func CloneRDS(src map[string]*LLMRouterRouting) SnapshotResource[*LLMRouterRouting] {
-	dst := make(map[string]*LLMRouterRouting, len(src))
-	for k, v := range src {
-		if v == nil {
-			continue
-		}
-		// 必须复制底层数据！
-		clone := LLMRouterRouting{
-			ClusterName: v.GetClusterName(),
-			Selector:    v.GetSelector(),
-			Region:      v.GetRegion(),
-			Weight:      v.GetWeight(),
-			Priority:    v.GetPriority(),
-			CanaryRatio: v.GetCanaryRatio(),
-		} // 如果 LLMRouterCluster 内部还有切片或指针，需要继续深拷贝
-		dst[k] = &clone
-	}
-	return SnapshotResource[*LLMRouterRouting]{Resources: dst}
-}
-
-func CloneEDS(src map[string]*LLMRouterEndpointAssignment) SnapshotResource[*LLMRouterEndpointAssignment] {
-	dst := make(map[string]*LLMRouterEndpointAssignment, len(src))
-	for k, v := range src {
-		if v == nil {
-			continue
-		}
-		// 必须复制底层数据！
-		clone := LLMRouterEndpointAssignment{
-			ClusterName: v.GetClusterName(),
-			Endpoints:   v.GetEndpoints(),
-		} // 如果 LLMRouterCluster 内部还有切片或指针，需要继续深拷贝
-		dst[k] = &clone
-	}
-	return SnapshotResource[*LLMRouterEndpointAssignment]{Resources: dst}
-}
-
-func CloneTDS(src map[string]*LLMRouterTenantPipelineConfigs) SnapshotResource[*LLMRouterTenantPipelineConfigs] {
-	dst := make(map[string]*LLMRouterTenantPipelineConfigs, len(src))
-	for k, v := range src {
-		if v == nil {
-			continue
-		}
-		// 必须复制底层数据！
-		clone := LLMRouterTenantPipelineConfigs{
-			TenantConfigId: v.GetTenantConfigId(),
-			Tenants:        v.GetTenants(),
-		} // 如果 LLMRouterCluster 内部还有切片或指针，需要继续深拷贝
-		dst[k] = &clone
-	}
-	return SnapshotResource[*LLMRouterTenantPipelineConfigs]{Resources: dst}
 }
 
 func (s *XDSController) GetCDS(services ...string) ([]*LLMRouterCluster, []string) {
@@ -155,7 +78,7 @@ func (s *XDSController) GetEDS(services ...string) ([]*LLMRouterEndpointAssignme
 	s.EDSController.rwMutex.RLock()
 	defer s.EDSController.rwMutex.RUnlock()
 	edss := make([]*LLMRouterEndpointAssignment, 0, len(services))
-	needRemoveServices := make([]string, 0)
+	needRemoveServices := make([]string, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, service := range services {
 		eds, ok := snapshot.EDS.Resources[service]
@@ -172,7 +95,7 @@ func (s *XDSController) GetRDS(services ...string) ([]*LLMRouterRouting, []strin
 	s.RDSController.rwMutex.RLock()
 	defer s.RDSController.rwMutex.RUnlock()
 	rdss := make([]*LLMRouterRouting, 0, len(services))
-	needRemoveServices := make([]string, 0)
+	needRemoveServices := make([]string, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, service := range services {
 		rds, ok := snapshot.RDS.Resources[service]
@@ -188,7 +111,7 @@ func (s *XDSController) GetTDS(uids ...string) ([]*LLMRouterTenantPipelineConfig
 	s.TDSController.rwMutex.RLock()
 	defer s.TDSController.rwMutex.RUnlock()
 	tdss := make([]*LLMRouterTenantPipelineConfigs, 0, len(uids))
-	needRemoveServices := make([]string, 0)
+	needRemoveServices := make([]string, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, service := range uids {
 		tds, ok := snapshot.TDS.Resources[service]
@@ -203,7 +126,7 @@ func (s *XDSController) GetTDS(uids ...string) ([]*LLMRouterTenantPipelineConfig
 func (s *XDSController) GetCDSAll() []*LLMRouterCluster {
 	s.CDSController.rwMutex.RLock()
 	defer s.CDSController.rwMutex.RUnlock()
-	clusters := make([]*LLMRouterCluster, 0)
+	clusters := make([]*LLMRouterCluster, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, c := range snapshot.CDS.Resources {
 		clusters = append(clusters, c)
@@ -214,7 +137,7 @@ func (s *XDSController) GetCDSAll() []*LLMRouterCluster {
 func (s *XDSController) GetEDSAll() []*LLMRouterEndpointAssignment {
 	s.EDSController.rwMutex.RLock()
 	defer s.EDSController.rwMutex.RUnlock()
-	clusters := make([]*LLMRouterEndpointAssignment, 0)
+	clusters := make([]*LLMRouterEndpointAssignment, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, e := range snapshot.EDS.Resources {
 		clusters = append(clusters, e)
@@ -225,7 +148,7 @@ func (s *XDSController) GetEDSAll() []*LLMRouterEndpointAssignment {
 func (s *XDSController) GetRDSAll() []*LLMRouterRouting {
 	s.RDSController.rwMutex.RLock()
 	defer s.RDSController.rwMutex.RUnlock()
-	clusters := make([]*LLMRouterRouting, 0)
+	clusters := make([]*LLMRouterRouting, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, r := range snapshot.RDS.Resources {
 		clusters = append(clusters, r)
@@ -235,7 +158,7 @@ func (s *XDSController) GetRDSAll() []*LLMRouterRouting {
 func (s *XDSController) GetTDSAll() []*LLMRouterTenantPipelineConfigs {
 	s.TDSController.rwMutex.RLock()
 	defer s.TDSController.rwMutex.RUnlock()
-	clusters := make([]*LLMRouterTenantPipelineConfigs, 0)
+	clusters := make([]*LLMRouterTenantPipelineConfigs, 0, 1)
 	snapshot := s.snapshot.Load().(*Snapshot)
 	for _, r := range snapshot.TDS.Resources {
 		clusters = append(clusters, r)

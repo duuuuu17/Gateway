@@ -54,7 +54,7 @@ func TestConcurrentPushAndACK_RaceFree(t *testing.T) {
 				Type:             llmrouterxds.EDSType,
 				AffectedServices: []string{fmt.Sprintf("svc-%d", i)},
 			}
-			_ = server.PushDeltaResources(event)
+			server.PushDeltaResources(event)
 		}(i)
 	}
 

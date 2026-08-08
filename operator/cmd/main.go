@@ -113,7 +113,7 @@ func main() {
 	}
 	window := 500 * time.Millisecond
 	pushCh := llmrouterxds.NewChanDebouncer(window)
-	// initalize XDSController
+	// initial XDSController
 	xdsController := llmrouterxds.NewXDSStorage()
 	// start grpc server && registry LLMRouterServer in grpc
 	grpcLogger := ctrl.Log.WithName("grpc-server")

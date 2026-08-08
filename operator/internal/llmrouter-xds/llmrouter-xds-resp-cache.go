@@ -35,10 +35,7 @@ func (rvc *RespVersionCache) Get(typeURL, lastAckVersion string) *DiscoveryRespo
 	defer rvc.mu.RUnlock()
 	versionedList := rvc.m[typeURL]
 	foundAckedVersion := slices.IndexFunc(versionedList, func(vr VersionedResponse) bool {
-		if vr.Version == lastAckVersion {
-			return true
-		}
-		return false
+		return vr.Version == lastAckVersion
 	})
 	if foundAckedVersion == -1 {
 		return nil
@@ -50,10 +47,7 @@ func (rvc *RespVersionCache) Add(typeURL string, Response VersionedResponse) {
 	defer rvc.mu.Unlock()
 	versionedList := rvc.m[typeURL]
 	foundAckedVersion := slices.IndexFunc(versionedList, func(vr VersionedResponse) bool {
-		if vr.Version == Response.Version {
-			return true
-		}
-		return false
+		return vr.Version == Response.Version
 	})
 	// 裁剪，多余的本地缓存
 	if foundAckedVersion == -1 {

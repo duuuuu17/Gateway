@@ -118,7 +118,7 @@ func (r *RouterSpec) ToLLMRouterrouting() *LLMRouterRouting {
 	return routing
 }
 func ToLLMRouterEndpointAssignment(service ServiceConfig, endpoints []string) []*LLMRouterEndpoint {
-	es := make([]*LLMRouterEndpoint, 0)
+	es := make([]*LLMRouterEndpoint, 0, 1)
 	for _, e := range endpoints {
 		es = append(es, &LLMRouterEndpoint{Address: e})
 	}

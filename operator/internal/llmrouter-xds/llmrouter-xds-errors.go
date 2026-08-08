@@ -3,5 +3,5 @@ package llmrouterxds
 import "errors"
 
 var (
-	ErrNotResources = errors.New("not resources!")
+	ErrNotResources = errors.New("not resources")
 )
