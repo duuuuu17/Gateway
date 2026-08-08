@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
-      CONTROLLER_IMAGE_NAME: ${{ vars.ACR_REPOSITORY }}/${{ vars.TEST_IMAGE_NAME }}
+      CONTROLLER_IMAGE_NAME: ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}
 
     steps:
       - name: Checkout
