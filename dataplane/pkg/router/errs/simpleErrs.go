@@ -9,7 +9,7 @@ var (
 	ErrNotMatchingBackend = errors.New("not matching backend Pod")
 	ErrClientCancel       = errors.New("clietn connection interrupted")
 	ErrInvalidRequest     = errors.New("invalid request")
-	ErrStreamUnsupport    = errors.New("streaming unsupport can't using http flusher!")
+	ErrStreamUnsupport    = errors.New("streaming unsupport can't using http flusher")
 	ErrNotSupportedTenant = errors.New("the tenant not be supported")
 	ErrBackendCantUse     = errors.New("backend pod can't use")
 )

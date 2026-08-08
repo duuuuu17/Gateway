@@ -142,6 +142,9 @@ func TestRouter_Forward(t *testing.T) {
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
 	sele, err := selectors.GetFilter(strategy)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// 检查selector选取
 	if _, ok := sele.(*filters.PickFirstFilterPlicy); !ok {
 		t.Log("can't got selector")

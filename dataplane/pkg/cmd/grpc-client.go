@@ -142,7 +142,8 @@ func (sc *StreamClient) establishStream(ctx context.Context, endpoint string) er
 	// 这一步才会真正发起 TCP 握手，如果控制面没起，会在这里超时或报错
 	stream, err := client.StreamAggregatedResources(ctx)
 	if err != nil {
-		conn.Close() // 记得关闭底层连接，防止泄漏
+		// 记得关闭底层连接，防止泄漏
+		conn.Close() //nolint:errcheck
 		slog.Error("连接服务端失败", "error: ", err)
 		return err
 	}
@@ -369,14 +370,16 @@ func (sc *StreamClient) sendACK(resp *llmrouterxds.DiscoveryResponse) {
 		"typeUrl", resp.TypeUrl,
 		"ACKNonce", resp.Nonce,
 		"ACKVersion", resp.VersionInfo)
-	_ = sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
+	if err := sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
 		TypeUrl:       resp.TypeUrl,
 		VersionInfo:   resp.VersionInfo,
 		ResponseNonce: resp.Nonce,
 		NodeId:        sc.NodeID,
 		// ResourceNames: resp.RemoveResources,
 		ErrorDetail: "",
-	})
+	}); err != nil {
+		slog.Error("controller error can't send ack message")
+	}
 }
 func (sc *StreamClient) sendNACK(resp *llmrouterxds.DiscoveryResponse, err error) {
 	sc.mu.Lock()
@@ -388,12 +391,14 @@ func (sc *StreamClient) sendNACK(resp *llmrouterxds.DiscoveryResponse, err error
 		"typeUrl", resp.TypeUrl,
 		"ACKNonce", resp.Nonce,
 		"ACKVersion", resp.VersionInfo)
-	sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
+	if err := sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
 		ErrorDetail: err.Error(),
 		NodeId:      sc.NodeID,
 		VersionInfo: st.LastAckVersion,
 		TypeUrl:     resp.TypeUrl,
-	})
+	}); err != nil {
+		slog.Error("controller error can't send nack message")
+	}
 }
 func (sc *StreamClient) getOrCreateTypeState(typ string) *XDSClientTypeState {
 	// sc.mu.Lock()

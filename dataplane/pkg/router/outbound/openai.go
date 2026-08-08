@@ -13,6 +13,7 @@ import (
 
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/common"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 	"go.opentelemetry.io/otel/trace"
@@ -128,8 +129,8 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.Resp
 	}
 	w.WriteHeader(resp.StatusCode)
 	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
-		metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Inc()
-		defer metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Dec()
+		metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, common.GetModelNameRetStr(ctx)).Inc()
+		defer metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, common.GetModelNameRetStr(ctx)).Dec()
 		span.AddEvent("streaming response")
 		return od.streamResponse(ctx, w, resp)
 	}
@@ -162,7 +163,7 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 		}
 		n, err := resp.Body.Read(buf) // 读取body
 		if n > 0 {
-			metrics.LLMStreamChunksTotal.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Inc() // 添加指标
+			metrics.LLMStreamChunksTotal.WithLabelValues(resp.Request.Host, common.GetModelNameRetStr(ctx)).Inc() // 添加指标
 			_, writeErr := w.Write(buf[:n])
 			if writeErr != nil {
 				slog.WarnContext(ctx, "write stream got error: ", "err", writeErr)

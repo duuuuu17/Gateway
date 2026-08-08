@@ -24,7 +24,10 @@ func Initialization(ctx context.Context, path string) (*MultiConfigStore, error)
 // 采用Hash ConfigMapFile方法
 func WatchConfig(ctx context.Context, filepath string, p *MultiConfigStore, load ConfigLoader) {
 	watcher, _ := fsnotify.NewWatcher()
-	watcher.Add(filepath)
+	if err := watcher.Add(filepath); err != nil {
+		slog.Warn("watch file failure")
+		return
+	}
 	var lastTIme time.Time
 	const fixedDelayTime = time.Millisecond * 500
 	slog.Info("YAML file watcher 已启动")

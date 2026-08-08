@@ -9,6 +9,7 @@ import (
 
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
+	"github.com/duuuuu17/llm-router-operator/pkg/router/common"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/pipeline"
@@ -178,7 +179,7 @@ func (r *HandleBackendResponseHandler) Handle(ctx *pipeline.ChainContext) error 
 		)
 		return err
 	}
-	ctx2 := context.WithValue(ctx.Req.Context(), "x-llm-model", ctx.LLMRequest.Model)
+	ctx2 := common.SetModelName(ctx.Req.Context(), ctx.LLMRequest.Model)
 	ctx2, span := tracer.Start(ctx2, "outbound.handleResponse", trace.WithAttributes(attribute.Int("statusCode", ctx.BackendResp.StatusCode)))
 	ctx.Req = ctx.Req.WithContext(ctx2)
 	defer span.End()
