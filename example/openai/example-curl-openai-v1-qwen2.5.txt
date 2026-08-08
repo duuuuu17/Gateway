@@ -1,1 +1,3 @@
-curl -v -H "Content-Type: application/json" "http://localhost:8080/openai/v1/chat/completions" -d @./chat-input.json -k
+curl -v -H "Content-Type: application/json" -H "X-LLM-TenantID: default" "http://172.18.0.3:30080/openai/v1/chat/completions" -d @./chat-input.json
+# concurrency test
+hey -n 100 -c 10 -m POST   -H "X-LLM-TenantID: default"   -H "Content-Type: application/json"   -D ./chat-input.json   http://172.18.0.3:30080/openai/v1/chat/completions

@@ -25,6 +25,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -40,6 +41,7 @@ import (
 	tenantv1alpha1 "github.com/duuuuu17/llm-router-operator/api/tenant/v1alpha1"
 	configcontroller "github.com/duuuuu17/llm-router-operator/internal/controller/config"
 	tenantcontroller "github.com/duuuuu17/llm-router-operator/internal/controller/tenant"
+	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
 	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	webhookv1alpha1 "github.com/duuuuu17/llm-router-operator/internal/webhook/config/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -55,6 +57,8 @@ func init() {
 
 	utilruntime.Must(configv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(tenantv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(discoveryv1.AddToScheme(scheme))
+
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -114,7 +118,7 @@ func main() {
 	// start grpc server && registry LLMRouterServer in grpc
 	grpcLogger := ctrl.Log.WithName("grpc-server")
 	respVersionCache := llmrouterxds.NewRespVersionCache(15)
-	llmRouterxdsServer, err := NewRPCListenerAndRegistryLLMRouterxDS(grpcLogger, ":50051", xdsController, pushCh, respVersionCache)
+	llmRouterxdsServer, err := utils.NewRPCListenerAndRegistryLLMRouterxDS(grpcLogger, ":50051", xdsController, pushCh, respVersionCache)
 	if err != nil {
 		grpcLogger.Error(err, "can't establish grpc listener", err.Error())
 		return
@@ -135,7 +139,7 @@ func main() {
 		webhookServerOptions.KeyName = webhookCertKey
 	}
 
-	webhookServer := webhook.NewServer(webhookServerOptions)
+	// webhookServer := webhook.NewServer(webhookServerOptions)
 
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
 	// More info:
@@ -144,7 +148,7 @@ func main() {
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: secureMetrics,
-		TLSOpts:       tlsOpts,
+		// TLSOpts:       tlsOpts,
 	}
 
 	if secureMetrics {
@@ -171,14 +175,14 @@ func main() {
 		metricsServerOptions.CertName = metricsCertName
 		metricsServerOptions.KeyName = metricsCertKey
 	}
-
+	pushCh.Start() // 事件队列，应该在启动所有controller之前
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
+		Scheme:  scheme,
+		Metrics: metricsServerOptions,
+		// WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "0cb516ec.llm-router.example.io",
+		// LeaderElection:         enableLeaderElection,
+		// LeaderElectionID:       "0cb516ec.llm-router.example.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -197,7 +201,7 @@ func main() {
 	}
 	// CR reconciler, Responsible for CDS/RDS
 	if err := (&configcontroller.LLMRouterConfigReconciler{
-		Logger:     ctrl.Log.WithName("cr reconciler"),
+		Logger:     ctrl.Log.WithName("LLMRouterConfigController"),
 		Debouncer:  pushCh,
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
@@ -208,7 +212,7 @@ func main() {
 	}
 
 	// nolint:goconst
-	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+	if getEnv("ENABLE_WEBHOOKS", "true") != "false" {
 		if err := webhookv1alpha1.SetupLLMRouterConfigWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "LLMRouterConfig")
 			os.Exit(1)
@@ -216,9 +220,9 @@ func main() {
 	}
 	// EDS Reconciler， Responsible for EDS
 	if err := (&configcontroller.EndpointSliceReconciler{
-		Logger: ctrl.Log.WithName("endpointslice reconciler"),
-
+		Logger:     ctrl.Log.WithName("EndpointsliceController"),
 		XDSManager: xdsController,
+		Debouncer:  pushCh,
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -227,8 +231,11 @@ func main() {
 	}
 
 	if err := (&tenantcontroller.TenantPipelineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Logger:     ctrl.Log.WithName("TenantController"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		XDSManager: xdsController,
+		Debouncer:  pushCh,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "TenantPipeline")
 		os.Exit(1)
@@ -255,5 +262,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	GRPCSever.GracefulStop() // grpc server 优雅退出
+	utils.GRPCSever.GracefulStop() // grpc server 优雅退出
+}
+func getEnv(key, defaultValue string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultValue
 }

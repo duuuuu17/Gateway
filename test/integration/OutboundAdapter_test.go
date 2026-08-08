@@ -55,7 +55,7 @@ func TestRouter_OutboundAdapterBuildHTTPRequest(t *testing.T) {
 	storage := NewFakeQwenCfg()
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, _ := core.FilterCandidates(llmReq, storage.RouterConfig)
+	candidates, _ := core.FilterCandidates(llmReq, &storage.RouterConfig)
 	strategy := core.ResolveStrategy(llmReq)
 	// 检测策略选择
 	if strategy != "FirstPick" {
@@ -136,7 +136,7 @@ func TestRouter_Forward(t *testing.T) {
 	}
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, _ := core.FilterCandidates(llmReq, storage.RouterConfig)
+	candidates, _ := core.FilterCandidates(llmReq, &storage.RouterConfig)
 	strategy := core.ResolveStrategy(llmReq)
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
@@ -153,8 +153,8 @@ func TestRouter_Forward(t *testing.T) {
 	// 设置fake server
 	server := router.FakeBackendServer()
 	defer server.Close()
-	backendCfg.Capabilty.Endpoints[0].Address = server.URL
-	backendCfg.Capabilty.Endpoints[1].Address = server.URL
+	backendCfg.Capabilty.Endpoints[0].Address = strings.TrimPrefix(server.URL, "http://")
+	backendCfg.Capabilty.Endpoints[1].Address = strings.TrimPrefix(server.URL, "http://")
 	outboundReg := outbound.NewOutBoundAdapterRegistry()
 	outboundReg.AddOutboundRegistry("openai", outbound.NewOpenAIOutBoundAdapter())
 	outboundAdapter, err := outboundReg.GetAdapter(backendCfg.Capabilty.Protocols)

@@ -21,9 +21,11 @@ type ChainContext struct {
 	BackendReq    *http.Request
 	BackendResp   *http.Response
 
-	Aborted  bool
-	Handlers []HandlerFunc
-	Index    int
+	Aborted   bool
+	Handlers  []HandlerFunc
+	Index     int
+	Tracer    trace.Tracer
+	Responded bool
 }
 
 func (ctx *ChainContext) Next() error {

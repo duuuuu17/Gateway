@@ -102,6 +102,11 @@ spec:
                           description: Routing defines the routing configuration for
                             the backend
                           properties:
+                            canary:
+                              description: Ratio is the fraction of traffic to send
+                                to this backend (0.0 to 1.0)
+                              pattern: ^(0(\.\d+)?|1(\.0+)?)$
+                              type: string
                             priority:
                               description: Priority determines the order of preference
                               format: int32
@@ -113,8 +118,7 @@ spec:
                                 to use
                               enum:
                               - round_robin
-                              - weighted
-                              - least_connections
+                              - least_conn
                               type: string
                             weight:
                               description: Weight is the relative weight for load
@@ -130,13 +134,13 @@ spec:
                 - backends
                 type: object
               configMapName:
-                default: config.yaml
-                description: ConfigMapName specifies the name of the ConfigMap to
-                  store the router configuration
+                description: |-
+                  ConfigMapName specifies the name of the ConfigMap to store the router configuration
+                  // +kubebuilder:default=config.yaml
+                  // +kubebuilder:validation:Required
                 type: string
             required:
             - backends
-            - configMapName
             type: object
           status:
             description: status defines the observed state of LLMRouterConfig

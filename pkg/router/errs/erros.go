@@ -31,6 +31,7 @@ func NewErrorHandleFuncMap() *ErrorHandleFuncMap {
 	errMap[ErrUnsupportProtocol] = errUnsupportProtocol
 	errMap[ErrNotMatchingBackend] = errNotMatchingBackend
 	errMap[ErrStreamUnsupport] = errStreamUnsupport
+	errMap[ErrNotSupportedTenant] = default503ErrorHandler
 	return &ErrorHandleFuncMap{errMap}
 }
 func (e *ErrorHandleFuncMap) HandleErrorFunc(ce *ContextErr, err error) {
@@ -60,7 +61,28 @@ func defaultErrorHandler(ce *ContextErr, err error) {
 		strconv.Itoa(500),
 		"false",
 	).Inc()
+	if ce.ResponseWriter.Header().Get("status") == "200" {
+		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", 500)
+		return
+	}
 	http.Error(ce.ResponseWriter, "internal server error", 500)
+}
+func default503ErrorHandler(ce *ContextErr, err error) {
+
+	ce.Span.SetStatus(codes.Error, err.Error())
+	ce.Span.RecordError(err)
+
+	metrics.HTTPRequestTotal.WithLabelValues(
+		ce.Req.Method,
+		metrics.GetPathTemplate(ce.Req.URL.Path),
+		strconv.Itoa(503),
+		"false",
+	).Inc()
+	if ce.ResponseWriter.Header().Get("status") == "200" {
+		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", 503)
+		return
+	}
+	http.Error(ce.ResponseWriter, "internal server error", 503)
 }
 
 func errStreamUnsupport(ce *ContextErr, err error) {

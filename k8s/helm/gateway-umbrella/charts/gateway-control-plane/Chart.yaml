@@ -1,0 +1,8 @@
+apiVersion: v2
+name: gateway-control-plane
+description: This repository implements the gateway control plane, 
+  monitoring changes to CR configuration instances and automatically dispatching configuration data.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+icon: "https://example.com/icon.png"

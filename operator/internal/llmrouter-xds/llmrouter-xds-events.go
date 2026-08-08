@@ -1,6 +1,8 @@
 package llmrouterxds
 
-import "time"
+import (
+	"time"
+)
 
 type ReconcilerPushEvent struct {
 	Type             XDSType  // xDsType
@@ -8,6 +10,32 @@ type ReconcilerPushEvent struct {
 	RemoveDService   []string // 需要删除的对象
 	Reason           string   // optional: CRUpdate / EndpointSliceChange
 }
+
+func NewEvent(typ, service string, deleted bool) ReconcilerPushEvent {
+	ret := ReconcilerPushEvent{}
+	if len(service) == 0 {
+		return ReconcilerPushEvent{}
+	}
+	switch typ {
+	case "cds":
+		ret.Type = CDSType
+	case "eds":
+		ret.Type = EDSType
+	case "rds":
+		ret.Type = RDSType
+	case "tds":
+		ret.Type = TDSType
+	default:
+		return ReconcilerPushEvent{}
+	}
+	if !deleted {
+		ret.AffectedServices = []string{service}
+	} else {
+		ret.RemoveDService = []string{service}
+	}
+	return ret
+}
+
 type XDSPushEvent struct {
 	Type             XDSType  // xDsType
 	AffectedServices []string // 受影响的ServiceName的配置

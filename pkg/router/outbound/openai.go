@@ -15,8 +15,6 @@ import (
 	"github.com/duuuuu17/llm-router-operator/pkg/metrics"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -60,22 +58,30 @@ func NewOpenAIOutBoundAdapter() OutboundAdapter {
 	return &OpenAIOutBoundAdapter{}
 }
 func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core.LLMRequest, cfg *config.RuntimeBackend) (*http.Request, error) {
-
+	// slog.Info("candidates.GetEndpoints", "[candidates.GetEndpoints]", cfg.GetEndpoints())
 	// Got backend uri
 	e, err := cfg.EndpointSelector.Select(cfg.GetEndpoints())
 	if err != nil {
 		return nil, err
 	}
-	useURI := e.Address + "/openai/v1/chat/completions"
+	// address := ""
+	// if e.Address == "10.244.1.24:8080" {
+	// 	address = "localhost:8000"
+	// }
+	// useURI := "http://" + address + "/openai/v1/chat/completions"
+	useURI := "http://" + e.Address + "/openai/v1/chat/completions"
 	// got openai protocol request body
+	// slog.Info("buildOpenAIBody")
 	openAIbody, err := buildOpenAIBody(req)
 	if err != nil {
 		return nil, err
 	}
+	// slog.Info("forwardBodyBytes")
 	forwardBodyBytes, err := json.Marshal(openAIbody)
 	if err != nil {
 		return nil, err
 	}
+	// slog.Info("http.NewRequestWithContext")
 	// NOTE: here using ctx from client request. And after occure interruption, the connection that route connect to Pod can be cancel
 	forwardReq, err := http.NewRequestWithContext(ctx, http.MethodPost, useURI, bytes.NewReader(forwardBodyBytes))
 	if err != nil {
@@ -97,22 +103,18 @@ func (od *OpenAIOutBoundAdapter) BuildHTTPRequest(ctx context.Context, req *core
 func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.ResponseWriter, resp *http.Response) error {
 	select {
 	case <-ctx.Done():
-		return errs.ErrClientCancel
+		return context.Canceled
 	default:
 	}
-	ctx, span := otel.Tracer("outbound").Start(ctx, "outbound.handleResponse", trace.WithAttributes(attribute.Int("statusCode", resp.StatusCode)))
-	defer span.End()
-
+	span := trace.SpanFromContext(ctx)
 	if resp.StatusCode >= 500 {
-		http.Error(w, "the model can't handle, waitting minutes!", 500)
-		metrics.BackendErrorsTotal.WithLabelValues(ctx.Value("x-model").(string), resp.Status).Inc()
+		metrics.BackendErrorsTotal.WithLabelValues(resp.Request.Host, resp.Status).Inc()
 
-		return errs.ErrBackend5xx
+		return errs.ErrBackendCantUse
 	}
 	if resp.StatusCode >= 400 {
-		http.Error(w, "the model can't handle, waitting minutes!", 400)
-		metrics.BackendErrorsTotal.WithLabelValues(ctx.Value("x-model").(string), resp.Status).Inc()
-		return errs.ErrBackend4xx
+		metrics.BackendErrorsTotal.WithLabelValues(resp.Request.Host, resp.Status).Inc()
+		return errs.ErrBackendCantUse
 	}
 	defer resp.Body.Close()
 	// write header to response client
@@ -149,11 +151,11 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 			// 此时可以获取err，然后判断错误类型并打印
 			err := ctx.Err()
 			if errors.Is(err, context.Canceled) {
-				slog.Warn("client cancel the request")
+				slog.WarnContext(ctx, "client cancel the request")
 			} else if errors.Is(err, context.DeadlineExceeded) {
-				slog.Warn("request deadline exceeded")
+				slog.WarnContext(ctx, "request deadline exceeded")
 			} else {
-				slog.Warn("client connection closed", "err", err.Error())
+				slog.WarnContext(ctx, "client connection closed", "err", err.Error())
 			}
 			return errs.ErrClientCancel
 		default:
@@ -163,7 +165,7 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 			metrics.LLMStreamChunksTotal.WithLabelValues(resp.Request.Host, ctx.Value("x-model").(string)).Inc() // 添加指标
 			_, writeErr := w.Write(buf[:n])
 			if writeErr != nil {
-				slog.Warn("write stream got error: ", "err", writeErr)
+				slog.WarnContext(ctx, "write stream got error: ", "err", writeErr)
 				break
 			}
 			flusher.Flush() // 写完立即刷新缓冲区

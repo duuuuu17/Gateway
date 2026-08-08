@@ -1,0 +1,29 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+    annotations:
+        {{- if .Values.certManager.enable }}
+        cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/operator-serving-cert
+        {{- end }}
+    name: operator-validating-webhook-configuration
+webhooks:
+    - admissionReviewVersions:
+        - v1
+      clientConfig:
+        service:
+            name: operator-webhook-service
+            namespace: {{ .Release.Namespace }}
+            path: /validate-config-llm-router-example-io-v1alpha1-llmrouterconfig
+      failurePolicy: Fail
+      name: vllmrouterconfig-v1alpha1.kb.io
+      rules:
+        - apiGroups:
+            - config.llm-router.example.io
+          apiVersions:
+            - v1alpha1
+          operations:
+            - CREATE
+            - UPDATE
+          resources:
+            - llmrouterconfigs
+      sideEffects: None

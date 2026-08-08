@@ -58,10 +58,13 @@ type Router struct {
 	// forwarder       Forward
 	coreHandlers *CoreHandlers
 	errhandlers  ErrorsRegistry
-	routerChain  atomic.Value // *Chain[HandlerFunc]
+	// v1alpha: not tenants
+	routerChain atomic.Value // *Chain[HandlerFunc]
 
 	// 租户隔离,多租户管线为immutable
-	tenants atomic.Value   // *TenantPipelines
+	// support tenants
+	tenants atomic.Pointer[pipeline.TenantPipelines] // atomic.Pointer[map[string]*pipeline.Pipeline[pipeline.HandlerFunc]] // *TenantPipelines
+	// tenants atomic.Pointer[pipeline.TenantPipelines]
 	plugins PluginRegistry // 插件注册表
 	bus     *eventbus.Bus
 }
@@ -69,7 +72,7 @@ type Router struct {
 // 由main函数调用的初始化函数
 // 初始化参数聚合，更符合后续工程项目的测试要爱方便
 type RouterDeps struct {
-	Configs         config.RouterConfig
+	Configs         *config.RouterConfig
 	BackendSelector BackendSelectorRegistry
 	Inbound         InboundRegistry
 	Outbound        OutboundRegistry
@@ -77,7 +80,7 @@ type RouterDeps struct {
 	ErrsHandleMap   ErrorsRegistry
 	RouterChain     atomic.Value
 	// 租户隔离,多租户管线为immutable
-	Tenants atomic.Value   // *TenantPipelines
+	// Tenants *pipeline.TenantPipelines // *TenantPipelines
 	Plugins PluginRegistry // 插件注册表
 	Bus     *eventbus.Bus
 }
@@ -102,199 +105,13 @@ func NewRouter(dep RouterDeps) *Router {
 		},
 		errhandlers: dep.ErrsHandleMap,
 		routerChain: dep.RouterChain,
-		tenants:     dep.Tenants,
+		tenants:     atomic.Pointer[pipeline.TenantPipelines]{},
 		plugins:     dep.Plugins,
 		bus:         dep.Bus,
 	}
+	router.tenants.Store(pipeline.NewTenantPipelines())
 	return router
 }
-
-// func NewRouter(dep RouterDeps) *Router {
-// 	chain := pipeline.NewPipeline[pipeline.HandlerFunc]()
-// 	inboundParseHandler := InboundAdapterParseHandler{Inbounds: dep.Inbound}
-// 	getCandidatesHandler := GetCandidatesHandler{Cfgs: dep.Configs}
-// 	getFilterHandler := GetFilterHandler{BackendSelector: dep.BackendSelector}
-// 	buildHTTPRequestHandler := BuildHTTPRequestHandler{Outbound: dep.Outbound}
-// 	forwardHTTPRequestHandler := ForwardHTTPRequestHandler{Forwarder: dep.Forward}
-// 	handleBackendResponseHandler := HandleBackendResponseHandler{Outbound: dep.Outbound}
-// 	chain.Use(
-// 		inboundParseHandler.Handle,
-// 		getCandidatesHandler.Handle,
-// 		getFilterHandler.Handle,
-// 		buildHTTPRequestHandler.Handle,
-// 		forwardHTTPRequestHandler.Handle,
-// 		handleBackendResponseHandler.Handle,
-// 	)
-// 	router := &Router{
-// 		// 		cfgs:            dep.Configs,
-// 		// backendSelector: dep.BackendSelector,
-// 		// outbound:        dep.Outbound,
-// 		// inbounds:        dep.Inbound,
-// 		// forwarder:       dep.Forward,
-// 		errhandlers: dep.ErrsHandleMap,
-// 		routerChain: dep.RouterChain,
-// 		tenants:     dep.Tenants,
-// 		plugins:     dep.Plugins,
-// 	}
-// 	router.routerChain.Store(chain)
-// 	return router
-// }
-
-// 实际执行Http处理逻辑
-// func (r *Router) HandleFunc(w http.ResponseWriter, req *http.Request) {
-// 	// NOTE: 当不存在tracer或span时，从spanFromContext获取trace信息会返回noop类型的对象表示不需要操作
-// 	rootSpan := trace.SpanFromContext(req.Context())
-// 	rootSpan.AddEvent("router receive the client request")
-// 	slog.Info("reqeust received",
-// 		"request-id", req.Header.Get("X-request-id"),
-// 		"method", req.Method,
-// 		"path", req.URL.Path,
-// 	)
-// 	// 执行逻辑
-// 	// 查询匹配的inboundAdapter
-// 	inboundAdapter, err := r.inbounds.GetAdapter(req)
-// 	if err != nil {
-// 		slog.Warn("no inbound adapter matched!",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"metbod", req.Method,
-// 			"path", req.URL.Path,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 获取中间态请求对象
-// 	llmRequest, err := inboundAdapter.Parse(req)
-// 	if err != nil {
-// 		slog.Error("convert to IR error!",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 		)
-// 		return
-// 	}
-// 	// 根据中间态请求对象和配置参数获取候选后端服务
-// 	rootSpan.AddEvent("select the backend")
-// 	candidates, err := core.FilterCandidates(llmRequest, r.cfgs)
-// 	if err != nil {
-// 		slog.Warn("backend selected",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"model", llmRequest.Model,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 业务逻辑过滤Service级，得到选择的候选者
-// 	// 当前仅支持Canary, AlwaysPickFirst
-// 	strategy := core.ResolveStrategy(llmRequest)
-// 	podEndpointFilter, err := r.backendSelector.GetFilter(strategy)
-// 	if err != nil {
-// 		slog.Warn("got selector failed",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"model", llmRequest.Model,
-// 			"strategy", strategy,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 通过策略选择器实例获取对应的backend信息
-// 	backendConfig, err := podEndpointFilter.Filter(candidates)
-// 	if err != nil {
-// 		slog.Warn("backend selected",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"model", llmRequest.Model,
-// 			"strategy", strategy,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 选择合适的适配器准备转发请求
-// 	// 获取对应后端服务的适配器
-// 	outboundAdapter, err := r.outbound.GetAdapter(backendConfig.Capabilty.Protocols)
-// 	if err != nil {
-// 		slog.Error("not sufficient adapte",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"model", backendConfig.Capabilty.Models,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 实际最终的Endpoint级选择应该在构建HTTP Request时调用
-// 	// 构建适合后端Pod的请求
-// 	backendRequest, err := outboundAdapter.BuildHTTPRequest(req.Context(), llmRequest, backendConfig)
-// 	if err != nil {
-// 		rootSpan.SetStatus(codes.Error, "build http request error!")
-// 		slog.Error("build http request error!",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"model", backendConfig.Capabilty.Models[0],
-// 			"error", err,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 		return
-// 	}
-// 	// 转发请求.不许要使用到客户端请求的上下文，是因为在构建转发请求时就已经使用
-// 	backendRequestStart := time.Now()
-// 	resp, err := r.forwarder.Do(backendRequest)
-// 	duration := time.Since(backendRequestStart).Seconds()
-// 	metrics.BackendRequestDuration.WithLabelValues(req.Host, backendConfig.Capabilty.Protocols[0]).Observe(duration)
-// 	if err != nil {
-// 		slog.Error("forward request failed",
-// 			"request-id", req.Header.Get("X-request-id"),
-// 			"backend", backendConfig.Capabilty.Models[0],
-// 			"error", err,
-// 		)
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 	}
-// 	// 处理后端Pod返回的请求并转发回给客户端
-// 	ctx := req.Context()
-// 	ctx = context.WithValue(req.Context(), "x-model", llmRequest.Model)
-// 	req = req.WithContext(ctx)
-// 	err = outboundAdapter.HandleResponse(req.Context(), w, resp)
-// 	if err != nil {
-// 		switch err {
-// 		case errs.ErrBackend5xx:
-// 			slog.Error("backend service failed",
-// 				"backend", backendConfig.Capabilty.Models[0],
-// 				"status", resp.StatusCode,
-// 			)
-// 		case errs.ErrBackend4xx:
-// 			slog.Warn("backend rejected rquest",
-// 				"backend", backendConfig.Capabilty.Models[0],
-// 				"status", resp.StatusCode,
-// 			)
-// 		}
-// 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-// 	}
-// 	// 请求处理完毕，需要记录到指标中
-// 	metrics.HTTPRequestTotal.WithLabelValues(
-// 		req.Method, metrics.GetPathTemplate(req.URL.Path), resp.Status,
-// 		strconv.FormatBool(errors.Is(err, errs.ErrClientCancel))).Inc()
-// 	rootSpan.AddEvent("model pod inference result response to client!")
-// }
-
-//	func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-//		// NOTE: 当不存在tracer或span时，从spanFromContext获取trace信息会返回noop类型的对象表示不需要操作
-//		rootSpan := trace.SpanFromContext(req.Context())
-//		rootSpan.AddEvent("router receive the client request")
-//		slog.Info("reqeust received",
-//			"request-id", req.Header.Get("X-request-id"),
-//			"method", req.Method,
-//			"path", req.URL.Path,
-//		)
-//		chain := r.routerChain.Load().(*pipeline.Pipeline[pipeline.HandlerFunc])
-//		chainCtx := pipeline.ChainContext{
-//			Req:        req,
-//			RespWriter: w,
-//			Handlers:   chain.Handlers,
-//			Index:      -1,
-//		}
-//		if err := chainCtx.Next(); err != nil {
-//			r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
-//			return
-//		}
-//		chainCtx.RespWriter.Header().Set("Content-Type", "application/json")
-//		chainCtx.RespWriter.WriteHeader(200)
-//		chainCtx.RespWriter.Write([]byte(`{"content":"test success"}`))
-//		// 请求处理完毕，需要记录到指标中
-//		rootSpan.AddEvent("model pod inference result response to client!")
-//	}
 
 // router模块循环操作，常见用于订阅监听的事件，调用处理等等
 func (r *Router) Start(ctx context.Context) {
@@ -312,15 +129,21 @@ func (r *Router) Start(ctx context.Context) {
 }
 func (r *Router) Reload(ctx context.Context, tenantCfg *config.GlobalConfig) {
 	newTenant := pipeline.NewTenantPipelines()
+
+	newTenant.CopyFromOldMap(r.tenants.Load())
+	// slog.Info("reload start time", "[start-time]", time.Now())
+	// Delta update
 	for tenantID, tenantCfg := range tenantCfg.TenantCfg {
 		chain, err := r.BuildPipeline(tenantCfg.Pipelines, r.plugins)
 		if err != nil {
-			slog.Error("can't reload tenantsConfig", "err", err.Error())
-			return
+			slog.ErrorContext(ctx, "can't reload tenantsConfig", "err", err.Error())
+			continue
 		}
 		newTenant.AddOrUpdateTenantPipeline(tenantID, chain)
 	}
-
+	// COW
+	r.tenants.Store(newTenant)
+	// slog.Info("reload end time", "[end-time]", time.Now())
 }
 func resolveTenant(req *http.Request) (string, error) {
 	id := req.Header.Get("X-LLM-TenantID")
@@ -332,7 +155,7 @@ func resolveTenant(req *http.Request) (string, error) {
 
 // 采取固定+插槽式Plugin的混合模式处理链
 // Parse → [PreRouting Plugins] → Route → [PostRouting Plugins] → BuildRequest → Forward → HandleResponse
-func (r *Router) BuildPipeline(steps config.PipelineConfig, registry PluginRegistry) (*pipeline.Pipeline[pipeline.HandlerFunc], error) {
+func (r *Router) BuildPipeline(steps *config.PipelineConfig, registry PluginRegistry) (*pipeline.Pipeline[pipeline.HandlerFunc], error) {
 	chain := pipeline.NewPipeline[pipeline.HandlerFunc]()
 	// 1. Parse
 	chain.Use(r.coreHandlers.Parse)
@@ -374,13 +197,12 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// NOTE: 当不存在tracer或span时，从spanFromContext获取trace信息会返回noop类型的对象表示不需要操作
 	rootSpan := trace.SpanFromContext(req.Context())
 	rootSpan.AddEvent("router receive the client request")
-	slog.Info("reqeust received",
+	slog.InfoContext(req.Context(), "reqeust received",
 		"request-id", req.Header.Get("X-request-id"),
 		"method", req.Method,
 		"path", req.URL.Path,
 	)
-
-	chain := r.tenants.Load().(*pipeline.TenantPipelines)
+	chain := r.tenants.Load()
 	tenantID, err := resolveTenant(req)
 	if err != nil {
 		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
@@ -396,15 +218,28 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		RespWriter: w,
 		Handlers:   handlersChain.Handlers,
 		Index:      -1,
+		RootSpan:   rootSpan,
 	}
+	slog.Info("go into chain handler!", "host", req.Host)
 	if err := chainCtx.Next(); err != nil {
-		r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
+		switch err {
+		case errs.ErrClientCancel:
+			slog.InfoContext(req.Context(), "client disconnectted",
+				"req_id", req.Header.Get("X-request-id"),
+			)
+		case context.Canceled:
+			slog.InfoContext(req.Context(), "client disconnectted",
+				"req_id", req.Header.Get("X-request-id"),
+			)
+		case errs.ErrBackendCantUse:
+			r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, errs.ErrBackend5xx)
+		default:
+			slog.InfoContext(req.Context(), "handler's chain error!", "[error]", err.Error())
+			r.errhandlers.HandleErrorFunc(&errs.ContextErr{Req: req, Span: rootSpan, ResponseWriter: w}, err)
+		}
 		return
 	}
 
-	chainCtx.RespWriter.Header().Set("Content-Type", "application/json")
-	chainCtx.RespWriter.WriteHeader(200)
-	chainCtx.RespWriter.Write([]byte(`{"content":"test success"}`))
 	// 请求处理完毕，需要记录到指标中
 	rootSpan.AddEvent("model pod inference result response to client!")
 }

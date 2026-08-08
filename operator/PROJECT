@@ -6,7 +6,10 @@ cliVersion: 4.10.1
 domain: llm-router.example.io
 layout:
 - go.kubebuilder.io/v4
-multigroup: true
+plugins:
+  helm.kubebuilder.io/v2-alpha:
+    manifests: dist/install.yaml
+    output: dist
 projectName: operator
 repo: github.com/duuuuu17/llm-router-operator
 resources:

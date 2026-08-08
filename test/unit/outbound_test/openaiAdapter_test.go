@@ -25,11 +25,11 @@ type fakeQwenCfg struct {
 
 func NewFakeQwenCfg() *fakeQwenCfg {
 	tmp := &config.Endpoint{}
-	tmp.Address = "http://127.0.0.1:8080"
+	tmp.Address = "127.0.0.1:8080"
 	tmp.Health.Store(true)
 	tmp.ActiveConn.Store(0)
 	tmp2 := &config.Endpoint{}
-	tmp2.Address = "http://127.0.0.2:8080"
+	tmp2.Address = "127.0.0.2:8080"
 	tmp2.Health.Store(true)
 	tmp2.ActiveConn.Store(0)
 	r := config.InitEndpointLevelSelectorRegistry()

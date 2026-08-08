@@ -1,6 +1,7 @@
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
-
+IMG ?= llm-router-controller:latest
+# 设置默认值为true(如果外部不传入，默认为启用webhook)
+ENABLE_WEBHOOKS ?= true
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -110,7 +111,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	ENABLE_WEBHOOKS=$(ENABLE_WEBHOOKS) go run ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.

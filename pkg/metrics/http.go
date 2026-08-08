@@ -7,6 +7,7 @@ import (
 )
 
 // http 指标
+// {"method", "path", "status", "cancel"}
 var HTTPRequestTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Namespace: "llm",
 	Subsystem: "router",
@@ -22,7 +23,7 @@ var HTTPRequestDuration = prometheus.NewHistogramVec(
 		Subsystem: "router",
 		Name:      "http_request_duration_seconds",
 		Help:      "HTTP request duration in seconds.",
-		Buckets:   prometheus.DefBuckets,
+		Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30, 60},
 	},
 	[]string{"method", "path"},
 )

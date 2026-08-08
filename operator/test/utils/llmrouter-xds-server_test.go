@@ -32,6 +32,37 @@ func (f *fakeXDSStore) GetRDS(services ...string) ([]*llmrouterxds.LLMRouterRout
 func (f *fakeXDSStore) GetRDSAll() []*llmrouterxds.LLMRouterRouting {
 	return []*llmrouterxds.LLMRouterRouting{{ClusterName: "route-a"}}
 }
+
+func (f *fakeXDSStore) GetTDS(services ...string) ([]*llmrouterxds.LLMRouterTenantPipelineConfigs, []string) {
+	return []*llmrouterxds.LLMRouterTenantPipelineConfigs{&llmrouterxds.LLMRouterTenantPipelineConfigs{
+		TenantConfigId: uuid.NewString(),
+		Tenants: []*llmrouterxds.LLMRouterTenantPipelineConfig{
+			&llmrouterxds.LLMRouterTenantPipelineConfig{
+				TenantId: uuid.NewString() + "tenant-id",
+				Enabled:  true,
+				TenantPreRouting: []*llmrouterxds.LLMRouterTenantPipelineStep{
+					&llmrouterxds.LLMRouterTenantPipelineStep{PluginName: "test-pre"}},
+				TenantPostRouting: []*llmrouterxds.LLMRouterTenantPipelineStep{
+					&llmrouterxds.LLMRouterTenantPipelineStep{PluginName: "test-post"}},
+			},
+		},
+	}}, []string{}
+}
+func (f *fakeXDSStore) GetTDSAll() []*llmrouterxds.LLMRouterTenantPipelineConfigs {
+	return []*llmrouterxds.LLMRouterTenantPipelineConfigs{{
+		TenantConfigId: uuid.NewString(),
+		Tenants: []*llmrouterxds.LLMRouterTenantPipelineConfig{
+			{
+				TenantId: uuid.NewString() + "tenant-id",
+				Enabled:  true,
+				TenantPreRouting: []*llmrouterxds.LLMRouterTenantPipelineStep{
+					{PluginName: "test-pre"}},
+				TenantPostRouting: []*llmrouterxds.LLMRouterTenantPipelineStep{
+					{PluginName: "test-post"}},
+			},
+		},
+	}}
+}
 func (f *fakeXDSStore) RefreshSnapshot() error {
 	return nil
 }
@@ -131,7 +162,7 @@ loop:
 		}
 	}
 
-	require.Equal(t, 3, received)
+	require.Equal(t, 4, received)
 
 	for _, xdsType := range []llmrouterxds.XDSType{llmrouterxds.EDSType, llmrouterxds.CDSType, llmrouterxds.RDSType} {
 		state := client.Nonce[string(xdsType)]

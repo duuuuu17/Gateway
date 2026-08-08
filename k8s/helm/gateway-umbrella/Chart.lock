@@ -1,0 +1,9 @@
+dependencies:
+- name: gateway-control-plane
+  repository: file://charts/gateway-control-plane/
+  version: 0.1.0
+- name: gateway-dataplane
+  repository: file://charts/gateway-dataplane
+  version: 0.1.0
+digest: sha256:59d5ee9a0684969907cc55e7a78817ae30acd8d4c250193e4f5591ab0454828b
+generated: "2026-08-07T11:09:08.269945851+08:00"

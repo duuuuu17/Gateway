@@ -1,6 +1,8 @@
 package pipeline
 
-import "github.com/duuuuu17/llm-router-operator/pkg/router/errs"
+import (
+	"github.com/duuuuu17/llm-router-operator/pkg/router/errs"
+)
 
 type Pipeline[T any] struct {
 	Handlers []T
@@ -25,6 +27,7 @@ func NewTenantPipelines() *TenantPipelines {
 	return &TenantPipelines{tenants: make(map[string]*Pipeline[HandlerFunc])}
 }
 func (t *TenantPipelines) GetTenantPipeline(tenantID string) (*Pipeline[HandlerFunc], error) {
+
 	if handlers, ok := t.tenants[tenantID]; ok {
 		return handlers, nil
 	}
@@ -33,8 +36,17 @@ func (t *TenantPipelines) GetTenantPipeline(tenantID string) (*Pipeline[HandlerF
 
 // 对于管线，不管什么情况下的加载，都是直接覆盖该租户的当前管线
 func (t *TenantPipelines) AddOrUpdateTenantPipeline(tenantID string, pip *Pipeline[HandlerFunc]) {
+
 	t.tenants[tenantID] = pip
 }
 func (t *TenantPipelines) RemoveTenantPipeline(tenantID string) {
+
 	delete(t.tenants, tenantID)
+}
+func (t *TenantPipelines) CopyFromOldMap(oldTenant *TenantPipelines) {
+	for k, v := range oldTenant.tenants {
+		val := &Pipeline[HandlerFunc]{}
+		val.Use(v.Handlers...)
+		t.tenants[k] = val
+	}
 }

@@ -1,0 +1,75 @@
+---
+# 使用单二进制模式，最轻量
+deploymentMode: SingleBinary
+
+# 关闭微服务模式的组件
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: 2026-07-25
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  storage_config:
+    filesystem:
+      directory: /var/loki/storage
+  podSecurityContext:
+    fsGroup: 10001
+    fsGroupChangePolicy: OnRootMismatch
+    runAsGroup: 10001
+    runAsNonRoot: true
+    runAsUser: 10001
+  # -- The SecurityContext for Loki containers
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+    allowPrivilegeEscalation: false
+  limits_config:
+    reject_old_samples: false # 允许 旧日志
+    reject_old_samples_max_age: 168h
+    max_cache_freshness_per_query: 10m
+    split_queries_by_interval: 15m
+    query_timeout: 300s
+    volume_enabled: true
+    ingestion_rate_mb: 64              # 放宽写入速率限制 (本地测试避免限流)
+    ingestion_burst_size_mb: 128
+
+# 关闭持久化，使用 emptyDir
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false
+  extraVolumes: # 设置挂载的volume,因为是kind环境此处设置为emptyDir
+    - name: loki-data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: loki-data
+      mountPath: /var/loki
+
+# 关闭不需要的组件
+read:
+  replicas: 0
+backend:
+  replicas: 0
+write:
+  replicas: 0
+gateway:
+  enabled: false
+
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+lokiCanary: # 必须开
+  enabled: true

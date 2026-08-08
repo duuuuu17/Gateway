@@ -7,3 +7,34 @@ metadata:
   name: tenantpipeline-sample
 spec:
   # TODO(user): Add fields here
+  tenants:
+    # 第一个租户配置
+    - tenant_id: "tenant-001"
+      enabled: true
+      pipeline:
+        pre_routing:
+          - name: "auth-check"
+            # x-kubernetes-preserve-unknown-fields: true 
+            # 意味着这里可以填写任意结构的 JSON/YAML
+            config:
+              token_required: true
+              allowed_models: 
+                - qwen2.5-0.5B
+        post_routing:
+          - name: "usage-logger"
+            config:
+              log_endpoint: "http://log-svc.monitoring.svc:8080/ingest"
+              batch_size: 100
+    # 第二个租户配置
+    - tenant_id: "tenant-002"
+      enabled: false
+      pipeline:
+        # 如果不需要前置路由，可以留空数组或省略该字段
+        pre_routing: []
+        post_routing: []
+    - tenant_id: "tenant-003"
+      enabled: false
+      pipeline:
+        # 如果不需要前置路由，可以留空数组或省略该字段
+        pre_routing: []
+        post_routing: []

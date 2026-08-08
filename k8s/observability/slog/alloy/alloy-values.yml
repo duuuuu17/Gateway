@@ -1,0 +1,58 @@
+---
+alloy:
+  # 覆盖默认配置，只做日志收集
+  configMap:
+    content: |-
+      // 1. 发现 Kubernetes Pod 日志
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+      // 过滤标签,明确丢弃job,service_name
+      discovery.relabel "filtered_pods" {
+        targets = discovery.kubernetes.pods.targets
+        rule {
+          action = "labeldrop"
+          regex = "^(job|service_name)$"
+        }
+        rule {
+          action = "labeldrop"
+          regex  = "^(namespace$|pod$|container$|app$|instance$).*"
+        }
+      }
+      // 2. 从 Pod 采集原始日志
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.filtered_pods.output
+        forward_to = [loki.process.slog_json.receiver]
+      }
+
+      // 3. 解析 slog JSON 日志并提取字段
+      loki.process "slog_json" {
+        forward_to = [loki.write.loki_http.receiver]
+        // 定义处理阶段，按顺序执行
+        // 解析 JSON 提取需要的字段
+        stage.json {
+          expressions = {
+            level    = "level",
+            msg      = "msg",
+            trace_id = "trace_id",
+            span_id  = "span_id",
+          }
+        }
+        // 将提取出的字段设置为 Loki 的标签 (Labels)
+        // 这样在 Grafana 里就可以直接按 trace_id 和 level 过滤了
+        stage.labels {
+          values = {
+            level    = "",
+            trace_id = "",
+            span_id  = "",
+          }
+        }
+      }
+
+      // 4. 将处理后的日志写入 Loki
+      // 假设你的 Loki 部署在 monitoring 命名空间,service name 为 loki
+      loki.write "loki_http" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }

@@ -1,0 +1,26 @@
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+    - job_name: "kubernetes-services"
+      kubernetes_sd_configs:
+        - role: endpoints
+      relabel_configs:
+        source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      # if need to tls_config, such as:
+      # - job_name: kube-etcd
+      #   kubernetes_sd_configs:
+      #     - role: node
+      #   scheme: https
+      #   tls_config:
+      #     ca_file:   /etc/prometheus/secrets/etcd-client-cert/etcd-ca
+      #     cert_file: /etc/prometheus/secrets/etcd-client-cert/etcd-client
+      #     key_file:  /etc/prometheus/secrets/etcd-client-cert/etcd-client-key
+      # # 'go run' test using
+      # - job_name: llm_route-go-run
+      #   static_configs:
+      #     - targets: ['172.17.0.1:9090']
+      #       labels:
+      #         app: 'llm-router'
+      #         env: 'local-dev' 

@@ -19,11 +19,13 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
 	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	"github.com/go-logr/logr"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +42,10 @@ type EndpointSliceReconciler struct {
 	Debouncer  llmrouterxds.Debouncer
 }
 
+const (
+	SVCLabel = "kubernetes.io/service-name"
+)
+
 func TransformerToLLMRouterEndpointAssignment() llmrouterxds.LLMRouterEndpointAssignment {
 	return llmrouterxds.LLMRouterEndpointAssignment{}
 }
@@ -50,17 +56,34 @@ func (r *EndpointSliceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// log := logf.FromContext(ctx)
 	var eps discoveryv1.EndpointSlice
 	if err := r.Get(ctx, req.NamespacedName, &eps); err != nil {
+		if apierrors.IsNotFound(err) {
+			// 如果 EndpointSlice 被删除了，r.Get 会返回 NotFound。
+			// 此时我们无法通过 eps.Labels 获取 svcName。
+			// 简单处理：忽略，或者触发一次全局 EDS 重算。
+			return utils.Reconciled()
+		}
 		msg := fmt.Sprintf("Failedt to get EndpointSlice, error: %s", err.Error())
 		return utils.RequeueErrCheck(ctx, err, msg)
 	}
-	svcName := eps.Labels["kubernetes.io/service-name"]
-
+	svcName := eps.Labels[SVCLabel]
 	// 获取当前出发reconciler的endpointslice的servicename的配置
 	serviceCfg, exists := r.XDSManager.GetServiceConfig(svcName)
 	if !exists {
 		return ctrl.Result{}, nil
 	}
-	edsEndpoints := ExtractReadyEndpointsFromEndpointSlice(eps, serviceCfg)
+	// 【关键优化】：当Pod超过100个时，EndpointSlice会进行分片处理，避免分片丢失问题
+	// 需要通过该 Service, 去List到所有关联的 EndpointSlice
+	var epsList discoveryv1.EndpointSliceList
+	if err := r.List(ctx, &epsList,
+		client.MatchingLabels{SVCLabel: svcName},
+		client.InNamespace(eps.Namespace)); err != nil {
+		return utils.RequeueErrCheck(ctx, err, "Failed to list all EndpointSlices for service")
+	}
+	edsEndpoints := make([]*llmrouterxds.LLMRouterEndpoint, 0)
+	for _, slice := range epsList.Items {
+		edsEndpoints = append(edsEndpoints, ExtractReadyEndpointsFromEndpointSlice(slice, serviceCfg)...)
+	}
+
 	r.XDSManager.UpdateOrCreateEDS(svcName, edsEndpoints)
 	r.pushEDSEvent(svcName)
 	// endpoints :=make([]*LLMRouterEndpoint, len(.))
@@ -109,24 +132,36 @@ func (r *EndpointSliceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func ExtractReadyEndpointsFromEndpointSlice(eps discoveryv1.EndpointSlice, serviceCfg llmrouterxds.ServiceConfig) []*llmrouterxds.LLMRouterEndpoint {
+	// slog.Info("serviceConfig", "[serviceConfig]", *serviceCfg.TargetPort)
 	edsEndpoints := make([]*llmrouterxds.LLMRouterEndpoint, 0, len(eps.Endpoints))
+	// slog.Info("endpoints", "[endpoints]", eps.Endpoints)
+	var targetPort int32 = -1
+	for _, port := range eps.Ports {
+		if port.Port != nil && *port.Port == *serviceCfg.TargetPort {
+			targetPort = *port.Port
+			break
+		}
+		if port.Name != nil && *port.Name == serviceCfg.TargetPortName {
+			targetPort = *port.Port
+			break
+		}
+	}
+	if targetPort == -1 {
+		return []*llmrouterxds.LLMRouterEndpoint{}
+	}
+	// second hanlde: literally get target service: address+port
 	for _, ep := range eps.Endpoints {
-		if ep.Conditions.Ready != nil && *ep.Conditions.Ready {
-			for _, port := range eps.Ports {
-				if port.Port != nil && *port.Port == *serviceCfg.TargetPort {
-					for _, addr := range ep.Addresses {
-						edsEndpoints = append(edsEndpoints, &llmrouterxds.LLMRouterEndpoint{
-							Address: fmt.Sprintf("%s:%d", addr, serviceCfg.TargetPort),
-						})
-					}
-				} else if port.Name != nil && *port.Name == serviceCfg.TargetPortName {
-					for _, addr := range ep.Addresses {
-						edsEndpoints = append(edsEndpoints, &llmrouterxds.LLMRouterEndpoint{
-							Address: fmt.Sprintf("%s:%d", addr, *port.Port),
-						})
-					}
-				}
+		if ep.Conditions.Terminating != nil && *ep.Conditions.Terminating {
+			continue
+		}
+		for _, addr := range ep.Addresses {
+			// 简单过滤掉 IPv6，如果你的环境不需要的话
+			if strings.Contains(addr, ":") {
+				continue
 			}
+			edsEndpoints = append(edsEndpoints, &llmrouterxds.LLMRouterEndpoint{
+				Address: fmt.Sprintf("%s:%d", addr, targetPort),
+			})
 		}
 	}
 	return edsEndpoints

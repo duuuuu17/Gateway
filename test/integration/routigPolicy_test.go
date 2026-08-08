@@ -20,11 +20,11 @@ type fakeQwenCfg struct {
 
 func NewFakeQwenCfg() *fakeQwenCfg {
 	tmp := &config.Endpoint{}
-	tmp.Address = "http://127.0.0.1:8080"
+	tmp.Address = "127.0.0.1:8080"
 	tmp.Health.Store(true)
 	tmp.ActiveConn.Store(0)
 	tmp2 := &config.Endpoint{}
-	tmp2.Address = "http://127.0.0.2:8080"
+	tmp2.Address = "127.0.0.2:8080"
 	tmp2.Health.Store(true)
 	tmp2.ActiveConn.Store(0)
 	r := config.InitEndpointLevelSelectorRegistry()
@@ -89,7 +89,7 @@ func TestRouter_SelectBackend(t *testing.T) {
 
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
-	candidates, err := core.FilterCandidates(llmReq, storage.RouterConfig)
+	candidates, err := core.FilterCandidates(llmReq, &storage.RouterConfig)
 	if err != nil {
 		t.Fatal("not match backend,check fakeBackends info !")
 
@@ -97,12 +97,12 @@ func TestRouter_SelectBackend(t *testing.T) {
 	strategy := core.ResolveStrategy(llmReq)
 	selectors := filters.NewSelectorRegistry()
 	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
-	selectors.AddSelector("Canary", filters.NewCanaryFilterPolicy())
+	selectors.AddSelector("Canary", filters.NewWeightedRandomFilter())
 	sele, err := selectors.GetFilter(strategy)
 	if err != nil {
 		t.Fatal("can't got selector")
 	}
-	if _, ok := sele.(*filters.CanaryFilterPolicy); !ok {
+	if _, ok := sele.(*filters.WeightedRandomFilter); !ok {
 		t.Fatal("selector is not Canary!")
 	}
 

@@ -1,0 +1,24 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: llm-router-pod-monitor
+  namespace: default
+  labels:
+    # 【关键点】：这个 label 必须和 Prometheus Operator 的选择器匹配
+    # kube-prometheus-stack 默认会抓取带有 release=<helm-release-name> 标签的 PodMonitor
+    #  helm install prometheus时，就是Prometheus
+    release: prometheus
+spec:
+  # 选择带有 app=llm-router 标签的 Pod
+  selector:
+    matchLabels:
+      app: llm-router
+  # 在哪些 namespace 去发现 Pod
+  namespaceSelector:
+    matchNames:
+      - default
+  podMetricsEndpoints:
+    - port: metrics       # 【关键点】：这里填的是 Pod 模板里 ports 的 NAME，不是数字
+      path: /metrics
+      interval: 15s

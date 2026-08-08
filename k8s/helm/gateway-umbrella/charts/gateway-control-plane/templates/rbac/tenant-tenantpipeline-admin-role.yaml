@@ -1,0 +1,22 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/name: operator
+    name: operator-tenant-tenantpipeline-admin-role
+rules:
+    - apiGroups:
+        - tenant.llm-router.example.io
+      resources:
+        - tenantpipelines
+      verbs:
+        - '*'
+    - apiGroups:
+        - tenant.llm-router.example.io
+      resources:
+        - tenantpipelines/status
+      verbs:
+        - get
+{{- end }}

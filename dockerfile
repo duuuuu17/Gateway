@@ -1,40 +1,46 @@
+# syntax=docker/dockerfile:1.4
 # build golang image with go version 1.25.5
-FROM golang:1.25.5-alpine AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:1.26.2-alpine3.23 AS builder
 
 # build parameters
-ENV GO111MODULE=on
-ENV GOPROXY=https://goproxy.cn,direct
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GOARCH=amd64
+ENV GO111MODULE=on \
+    GOPROXY=https://goproxy.cn,direct \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
 
 # set work directory
 WORKDIR /app
-
 # copy go mod and go sum files
-COPY go.mod .
-COPY go.sum .
+COPY go.mod go.sum ./
 # download go mod dependencies
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 # copy source files
 COPY . .
 # build the binary
-RUN go build -ldflags="-s -w" -o llm-router ./main.go
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    go build -mod=readonly -ldflags="-s -w" -o llm-router ./llm-router.go
 
-FROM alpine:latest
-# annotations
-LABEL maintainer="duuuuu17 <ethandu17@qq.com>"
-LABEL version="alpha"
-LABEL author="duuuuu17"
-LABEL email="ethandu17@qq.com"
+
+FROM alpine:latest AS run
+# create user and user group, use fix UID/GID 1001
+RUN addgroup -g 1001 appgroup && \
+    adduser -u 1001 -G appgroup -D appuser
+# setup workdir owner [user:group]
+RUN chown -R appuser:appgroup /app
+# default startup user
+USER 1001
 
 WORKDIR /app
-
 COPY --from=builder /app/llm-router /app/llm-router
 
-RUN chmod u+x /app/llm-router
+ENV CONTROL_PLANE_ENDPOINT="localhost:50051" \
+    OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
 
-EXPOSE 8080
-
+EXPOSE 8080 9090
 CMD ["./llm-router"]
+
+
+

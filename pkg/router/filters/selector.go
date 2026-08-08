@@ -23,7 +23,7 @@ func (sr *SelectorRegistry) AddSelector(strategy string, selector CandidatesFilt
 }
 func (sr *SelectorRegistry) GetFilter(strategy string) (CandidatesFilter, error) {
 	if strategy == "" {
-		return sr.m["default"], nil
+		strategy = "default"
 	}
 	s, ok := sr.m[strategy]
 	if !ok {

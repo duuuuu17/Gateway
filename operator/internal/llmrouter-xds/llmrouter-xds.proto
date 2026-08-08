@@ -56,13 +56,20 @@ message LLMRouterEndpoint{
 // RDS
 message LLMRouterRouting{
     string cluster_name = 1;
-    int32 weight = 2;
-    int32 priority = 3;
-    string region = 4;
+    string selector = 2;      // 新增: 负载均衡策略，如 RoundRobin, LeastConnect
+    int32 weight = 3;         // 字段编号顺延
+    int32 priority = 4;
+    string region = 5;
+    
+    double canary_ratio = 6; 
 }
 // TDS
+message LLMRouterTenantPipelineConfigs{
+  string tenant_config_id = 1;
+  repeated LLMRouterTenantPipelineConfig tenants = 2;
+}
 message LLMRouterTenantPipelineConfig{
-  string tenant_id = 1;
+  string tenant_id = 1; // tenant config uid
    bool enabled = 2;
 
   repeated LLMRouterTenantPipelineStep tenant_pre_routing = 3;

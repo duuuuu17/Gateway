@@ -4,8 +4,8 @@ backends: # backends将被创建在configmap的data部分
       models: ["qwen", "qwen2.5"]
       protocols: ["openai"]
       endpoints:
-        - "http://172.18.0.3:32337"
-        - "http://172.18.0.4:32337"
+        - "172.18.0.3:32337"
+        - "172.18.0.4:32337"
       streaming: true
     routing:
       weight: 40
@@ -16,10 +16,12 @@ backends: # backends将被创建在configmap的data部分
       models: ["qwen", "qwen2.5"]
       protocols: ["openai"]
       endpoints:
-        - "http://172.18.0.5:32337"
-        - "http://172.18.0.6:32337"
+        - "172.18.0.5:32337"
+        - "172.18.0.6:32337"
       streaming: true
     routing:
       weight: 60
       priority: 100
+      canary:
+        ratio: 0.5 # 使用string类型，后续通过strconv进行转换为float
       strategy: least_conn #round_robin # least_conn

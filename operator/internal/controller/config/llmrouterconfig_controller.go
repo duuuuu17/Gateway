@@ -31,7 +31,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,13 +38,13 @@ import (
 
 const (
 	configMapPath = ".spec.configMapName"
-	finalizer     = "llmrouter_config"
+	finalizer     = "github.com/duuuuu17.llm-router-config"
 	TypeCDS       = "cds"
 	TypeEDS       = "eds"
 	TypeRDS       = "rds"
 )
 
-//todo:
+//todo: [finished]
 // CR Reconciler → CDS / RDS
 //EndpointSlice Informer → EDS
 
@@ -77,7 +76,8 @@ func (r *LLMRouterConfigReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	var cfg configv1alpha1.LLMRouterConfig
 	if err := r.Get(ctx, req.NamespacedName, &cfg); err != nil {
 		if apierrors.IsNotFound(err) {
-			r.XDSManager.DeleteAllXDSs() // 未查到CR实例，删除本地缓存
+			// r.XDSManager.DeleteAllXDSs() // 未查到CR实例，删除本地缓存
+			r.Logger.V(1).Info("the CR is not found!")
 			return utils.Reconciled()
 		}
 		return utils.RequeueErrCheck(ctx, err, "can't got the CR obj")
@@ -121,6 +121,9 @@ func (r *LLMRouterConfigReconciler) GetMatchingLabelsEndpointSlice(ctx context.C
 	}); err != nil {
 		return nil
 	}
+	if len(esList.Items) == 0 {
+		return &discoveryv1.EndpointSlice{}
+	}
 	return &esList.Items[0]
 }
 func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backends *configv1alpha1.BackendConfig) (push []llmrouterxds.ReconcilerPushEvent) {
@@ -138,7 +141,10 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 		serviceName := backend.Name
 		desiredServiceNames = append(desiredServiceNames, serviceName)
 		// DTO
-		clusterSpec, routerSpec := llmrouterxds.NewClusterSpec(&backend)
+		clusterSpec, routerSpec, err := llmrouterxds.NewClusterSpec(&backend)
+		if err != nil { //  如果出现CanaryRatio转换float64失败就直接传递空推送
+			return dirtyEvents
+		}
 
 		cluster := clusterSpec.ToLLMRouterCluster()
 		serviceCfg := clusterSpec.ToLLMRouterServiceConfig()
@@ -152,19 +158,19 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 		}
 		if r.XDSManager.UpdateOrCreateCDS(serviceName, cluster, serviceCfg) {
 			isChange = true
-			dirtyEvents = append(dirtyEvents, NewEvent(TypeCDS, serviceName))
-
+			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeCDS, serviceName, false))
 		}
 		if r.XDSManager.UpdateOrCreateRDS(serviceName, router, serviceCfg) {
 			isChange = true
-			dirtyEvents = append(dirtyEvents, NewEvent(TypeRDS, serviceName))
+			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeRDS, serviceName, false))
 		}
 		// 需要确认创建的eds,以及修改port时，需要主动推送
 		es := r.GetMatchingLabelsEndpointSlice(ctx, serviceName)
+		// r.Logger.Info("endpointslice", "[endpointslice]", es.Endpoints)
 		eds := ExtractReadyEndpointsFromEndpointSlice(*es, *serviceCfg)
 		if r.XDSManager.UpdateOrCreateEDS(serviceName, eds) {
 			isChange = true
-			dirtyEvents = append(dirtyEvents, NewEvent(TypeEDS, serviceName))
+			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeEDS, serviceName, false))
 		}
 		if isChange {
 			dirtyServices = append(dirtyServices, serviceName)
@@ -176,35 +182,44 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 	// 此时 desiredServiceNames 包含了 CR 里所有的 Service
 	// 调用 NeedRemovedService 找出那些 "Cache 里有但 CR 里没有" 的服务
 	removedServices := r.XDSManager.NeedRemovedService(desiredServiceNames...)
-	for _, rmSvc := range removedServices {
+	// r.Logger.Info("removekey", "servicename", removedServices)
+
+	return AppendDeleteServiceEvents(removedServices, dirtyEvents)
+}
+func AppendDeleteServiceEvents(services []string, pushEvents []llmrouterxds.ReconcilerPushEvent) []llmrouterxds.ReconcilerPushEvent {
+	if len(pushEvents) == 0 {
+		pushEvents = make([]llmrouterxds.ReconcilerPushEvent, 0)
+	}
+	for _, service := range services {
 		// 这里的 rmSvc 已经在 NeedRemovedService 内部被 delete(cache) 了
 		// 只需要生成 Remove 事件通知 Debouncer -> Pusher
 		// 生成所有类型的删除事件 (因为 Service 删了，CDS/RDS/EDS 都应该删)
-		dirtyEvents = append(dirtyEvents, NewEvent(TypeCDS, rmSvc))
-		dirtyEvents = append(dirtyEvents, NewEvent(TypeRDS, rmSvc))
-		dirtyEvents = append(dirtyEvents, NewEvent(TypeEDS, rmSvc))
+		pushEvents = append(pushEvents, llmrouterxds.NewEvent(TypeCDS, service, true))
+		pushEvents = append(pushEvents, llmrouterxds.NewEvent(TypeRDS, service, true))
+		pushEvents = append(pushEvents, llmrouterxds.NewEvent(TypeEDS, service, true))
 	}
-	return dirtyEvents
+	return pushEvents
 }
-
 func (r *LLMRouterConfigReconciler) DeleteXDSCache(backends *configv1alpha1.BackendConfig) {
 	serviceNames := make([]string, 0, len(backends.Backends))
 	for _, backend := range backends.Backends {
 		serviceName := backend.Name
 		serviceNames = append(serviceNames, serviceName)
 	}
-	r.XDSManager.DeleteXDSs(serviceNames...)
+	if r.XDSManager.DeleteXDSs(serviceNames...) {
+		r.Logger.Info("delete xDSs", "xDSs", serviceNames)
+	}
+	r.pushXDSEvent(AppendDeleteServiceEvents(serviceNames, nil))
 }
 func (r *LLMRouterConfigReconciler) reconcileDelete(ctx context.Context, cr *configv1alpha1.LLMRouterConfig) (reconcile.Result, error) {
 	if controllerutil.ContainsFinalizer(cr, finalizer) {
 		// 逻辑删除
 		r.DeleteXDSCache(cr.Spec.Backends)
-		log.FromContext(ctx).Info("delete Configmap")
 		controllerutil.RemoveFinalizer(cr, finalizer)
 		if err := r.Update(ctx, cr); err != nil {
 			return utils.RequeueErrCheck(ctx, err, "can't removefinalizer")
 		}
-		log.FromContext(ctx).Info("remove fianlizer field")
+		r.Logger.Info("remove fianlizer field")
 	}
 	return utils.Reconciled()
 }

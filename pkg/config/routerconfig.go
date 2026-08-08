@@ -53,11 +53,11 @@ func NewEndpoint(address string) *Endpoint {
 }
 
 type BackendRouting struct {
-	Weight   int32
-	Priority int32
-	// CanaryRatio float64
-	Region string
-	// Strategy    string
+	Weight      int32
+	Priority    int32
+	CanaryRatio float64
+	Region      string
+	Selector    string
 }
 
 // 统一行为接口
@@ -65,6 +65,11 @@ type ConfigLoader interface {
 	Load() (RouterConfig, error)
 }
 
+func NewRouterConfigOfNullBackends() RouterConfig {
+	rc := RouterConfig{Backends: atomic.Value{}}
+	rc.Backends.Store(make(map[string]*RuntimeBackend))
+	return rc
+}
 func NewRouterConfig(init RouterConfig) *RouterConfig {
 	p := &RouterConfig{}
 	p.updateALL(init)

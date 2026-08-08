@@ -78,19 +78,21 @@ type Port struct {
 type Routing struct {
 	// Weight is the relative weight for load balancing
 	// +optional
+	// +kububuilder:default=0
 	Weight *int32 `json:"weight,omitempty" yaml:"weight,omitempty"`
 
 	// Priority determines the order of preference
 	// +optional
 	Priority *int32 `json:"priority,omitempty" yaml:"priority,omitempty"`
 
-	// // Canary defines canary deployment settings
-	// // +optional
-	// Canary *Canary `json:"canary,omitempty" yaml:"canary,omitempty"`
+	// Ratio is the fraction of traffic to send to this backend (0.0 to 1.0)
+	// +kubebuilder:validation:Pattern=`^(0(\.\d+)?|1(\.0+)?)$`
+	// +optional
+	CanaryRatio string `json:"canary,omitempty" yaml:"canary,omitempty"`
 
 	// Selectors is a list of routing strategies to use
 	// +optional
-	// +kubebuilder:validation:Enum=round_robin;weighted;least_connections
+	// +kubebuilder:validation:Enum=round_robin;least_conn
 	Selector string `json:"selector,omitempty" yaml:"selector,omitempty"`
 	// +optional
 	Region string `json:"region,omitempty" yaml:"region,omitempty"`
@@ -98,8 +100,7 @@ type Routing struct {
 
 // // Canary defines canary deployment settings
 // // +k8s:deepcopy-gen=true
-// type Canary struct {
-// 	// Ratio is the fraction of traffic to send to this backend (0.0 to 1.0)
+// type CanaryRatio struct {
 // 	// need strconv.parseFloat
 // 	// +optional
 // 	Ratio string `json:"ratio,omitempty" yaml:"ratio,omitempty"`
@@ -120,8 +121,8 @@ type LLMRouterConfigSpec struct {
 	// +required
 	Backends *BackendConfig `json:"backends,omitempty" yaml:"backends,omitempty"`
 	// ConfigMapName specifies the name of the ConfigMap to store the router configuration
-	// +kubebuilder:default=config.yaml
-	// +kubebuilder:validation:Required
+	// // +kubebuilder:default=config.yaml
+	// // +kubebuilder:validation:Required
 	// +optional
 	ConfigMapName string `json:"configMapName" yaml:"configMapName"`
 }

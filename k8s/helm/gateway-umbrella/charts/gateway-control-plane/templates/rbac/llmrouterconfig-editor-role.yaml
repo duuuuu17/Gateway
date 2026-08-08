@@ -1,0 +1,28 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/name: operator
+    name: operator-llmrouterconfig-editor-role
+rules:
+    - apiGroups:
+        - config.llm-router.example.io
+      resources:
+        - llmrouterconfigs
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - config.llm-router.example.io
+      resources:
+        - llmrouterconfigs/status
+      verbs:
+        - get
+{{- end }}

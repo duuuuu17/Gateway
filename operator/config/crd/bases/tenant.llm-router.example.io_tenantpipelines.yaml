@@ -39,37 +39,47 @@ spec:
           spec:
             description: spec defines the desired state of TenantPipeline
             properties:
-              enabled:
-                type: boolean
-              pipeline:
-                properties:
-                  post_routing:
-                    items:
+              tenants:
+                items:
+                  properties:
+                    enabled:
+                      type: boolean
+                    pipeline:
                       properties:
-                        config:
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                        name:
-                          type: string
-                      required:
-                      - name
+                        post_routing:
+                          items:
+                            properties:
+                              config:
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        pre_routing:
+                          items:
+                            properties:
+                              config:
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              name:
+                                type: string
+                            required:
+                            - name
+                            type: object
+                          type: array
                       type: object
-                    type: array
-                  pre_routing:
-                    items:
-                      properties:
-                        config:
-                          type: object
-                          x-kubernetes-preserve-unknown-fields: true
-                        name:
-                          type: string
-                      required:
-                      - name
-                      type: object
-                    type: array
-                type: object
+                    tenant_id:
+                      type: string
+                  required:
+                  - pipeline
+                  - tenant_id
+                  type: object
+                type: array
             required:
-            - pipeline
+            - tenants
             type: object
           status:
             description: status defines the observed state of TenantPipeline

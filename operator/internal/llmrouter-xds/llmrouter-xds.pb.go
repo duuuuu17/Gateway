@@ -373,9 +373,11 @@ func (x *LLMRouterEndpoint) GetAddress() string {
 type LLMRouterRouting struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClusterName   string                 `protobuf:"bytes,1,opt,name=cluster_name,json=clusterName,proto3" json:"cluster_name,omitempty"`
-	Weight        int32                  `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
-	Priority      int32                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
-	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	Selector      string                 `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"` // 新增: 负载均衡策略，如 round_robin, weighted
+	Weight        int32                  `protobuf:"varint,3,opt,name=weight,proto3" json:"weight,omitempty"`    // 字段编号顺延
+	Priority      int32                  `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	Region        string                 `protobuf:"bytes,5,opt,name=region,proto3" json:"region,omitempty"`
+	CanaryRatio   float64                `protobuf:"fixed64,6,opt,name=canary_ratio,json=canaryRatio,proto3" json:"canary_ratio,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -417,6 +419,13 @@ func (x *LLMRouterRouting) GetClusterName() string {
 	return ""
 }
 
+func (x *LLMRouterRouting) GetSelector() string {
+	if x != nil {
+		return x.Selector
+	}
+	return ""
+}
+
 func (x *LLMRouterRouting) GetWeight() int32 {
 	if x != nil {
 		return x.Weight
@@ -438,10 +447,69 @@ func (x *LLMRouterRouting) GetRegion() string {
 	return ""
 }
 
+func (x *LLMRouterRouting) GetCanaryRatio() float64 {
+	if x != nil {
+		return x.CanaryRatio
+	}
+	return 0
+}
+
 // TDS
+type LLMRouterTenantPipelineConfigs struct {
+	state          protoimpl.MessageState           `protogen:"open.v1"`
+	TenantConfigId string                           `protobuf:"bytes,1,opt,name=tenant_config_id,json=tenantConfigId,proto3" json:"tenant_config_id,omitempty"`
+	Tenants        []*LLMRouterTenantPipelineConfig `protobuf:"bytes,2,rep,name=tenants,proto3" json:"tenants,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LLMRouterTenantPipelineConfigs) Reset() {
+	*x = LLMRouterTenantPipelineConfigs{}
+	mi := &file_llmrouter_xds_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LLMRouterTenantPipelineConfigs) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LLMRouterTenantPipelineConfigs) ProtoMessage() {}
+
+func (x *LLMRouterTenantPipelineConfigs) ProtoReflect() protoreflect.Message {
+	mi := &file_llmrouter_xds_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LLMRouterTenantPipelineConfigs.ProtoReflect.Descriptor instead.
+func (*LLMRouterTenantPipelineConfigs) Descriptor() ([]byte, []int) {
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *LLMRouterTenantPipelineConfigs) GetTenantConfigId() string {
+	if x != nil {
+		return x.TenantConfigId
+	}
+	return ""
+}
+
+func (x *LLMRouterTenantPipelineConfigs) GetTenants() []*LLMRouterTenantPipelineConfig {
+	if x != nil {
+		return x.Tenants
+	}
+	return nil
+}
+
 type LLMRouterTenantPipelineConfig struct {
 	state             protoimpl.MessageState         `protogen:"open.v1"`
-	TenantId          string                         `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId          string                         `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"` // tenant config uid
 	Enabled           bool                           `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	TenantPreRouting  []*LLMRouterTenantPipelineStep `protobuf:"bytes,3,rep,name=tenant_pre_routing,json=tenantPreRouting,proto3" json:"tenant_pre_routing,omitempty"`
 	TenantPostRouting []*LLMRouterTenantPipelineStep `protobuf:"bytes,4,rep,name=tenant_post_routing,json=tenantPostRouting,proto3" json:"tenant_post_routing,omitempty"`
@@ -451,7 +519,7 @@ type LLMRouterTenantPipelineConfig struct {
 
 func (x *LLMRouterTenantPipelineConfig) Reset() {
 	*x = LLMRouterTenantPipelineConfig{}
-	mi := &file_llmrouter_xds_proto_msgTypes[6]
+	mi := &file_llmrouter_xds_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +531,7 @@ func (x *LLMRouterTenantPipelineConfig) String() string {
 func (*LLMRouterTenantPipelineConfig) ProtoMessage() {}
 
 func (x *LLMRouterTenantPipelineConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_llmrouter_xds_proto_msgTypes[6]
+	mi := &file_llmrouter_xds_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +544,7 @@ func (x *LLMRouterTenantPipelineConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterTenantPipelineConfig.ProtoReflect.Descriptor instead.
 func (*LLMRouterTenantPipelineConfig) Descriptor() ([]byte, []int) {
-	return file_llmrouter_xds_proto_rawDescGZIP(), []int{6}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LLMRouterTenantPipelineConfig) GetTenantId() string {
@@ -517,7 +585,7 @@ type LLMRouterTenantPipelineStep struct {
 
 func (x *LLMRouterTenantPipelineStep) Reset() {
 	*x = LLMRouterTenantPipelineStep{}
-	mi := &file_llmrouter_xds_proto_msgTypes[7]
+	mi := &file_llmrouter_xds_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +597,7 @@ func (x *LLMRouterTenantPipelineStep) String() string {
 func (*LLMRouterTenantPipelineStep) ProtoMessage() {}
 
 func (x *LLMRouterTenantPipelineStep) ProtoReflect() protoreflect.Message {
-	mi := &file_llmrouter_xds_proto_msgTypes[7]
+	mi := &file_llmrouter_xds_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +610,7 @@ func (x *LLMRouterTenantPipelineStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LLMRouterTenantPipelineStep.ProtoReflect.Descriptor instead.
 func (*LLMRouterTenantPipelineStep) Descriptor() ([]byte, []int) {
-	return file_llmrouter_xds_proto_rawDescGZIP(), []int{7}
+	return file_llmrouter_xds_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *LLMRouterTenantPipelineStep) GetPluginName() string {
@@ -588,12 +656,17 @@ const file_llmrouter_xds_proto_rawDesc = "" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12G\n" +
 	"\tendpoints\x18\x02 \x03(\v2).llmrouter.xds.v1alpha1.LLMRouterEndpointR\tendpoints\"-\n" +
 	"\x11LLMRouterEndpoint\x12\x18\n" +
-	"\aaddress\x18\x01 \x01(\tR\aaddress\"\x81\x01\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\"\xc0\x01\n" +
 	"\x10LLMRouterRouting\x12!\n" +
-	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12\x16\n" +
-	"\x06weight\x18\x02 \x01(\x05R\x06weight\x12\x1a\n" +
-	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12\x16\n" +
-	"\x06region\x18\x04 \x01(\tR\x06region\"\x9e\x02\n" +
+	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12\x1a\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\x12\x16\n" +
+	"\x06weight\x18\x03 \x01(\x05R\x06weight\x12\x1a\n" +
+	"\bpriority\x18\x04 \x01(\x05R\bpriority\x12\x16\n" +
+	"\x06region\x18\x05 \x01(\tR\x06region\x12!\n" +
+	"\fcanary_ratio\x18\x06 \x01(\x01R\vcanaryRatio\"\x9b\x01\n" +
+	"\x1eLLMRouterTenantPipelineConfigs\x12(\n" +
+	"\x10tenant_config_id\x18\x01 \x01(\tR\x0etenantConfigId\x12O\n" +
+	"\atenants\x18\x02 \x03(\v25.llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfigR\atenants\"\x9e\x02\n" +
 	"\x1dLLMRouterTenantPipelineConfig\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12a\n" +
@@ -618,32 +691,34 @@ func file_llmrouter_xds_proto_rawDescGZIP() []byte {
 	return file_llmrouter_xds_proto_rawDescData
 }
 
-var file_llmrouter_xds_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_llmrouter_xds_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_llmrouter_xds_proto_goTypes = []any{
-	(*DiscoveryRequest)(nil),              // 0: llmrouter.xds.v1alpha1.DiscoveryRequest
-	(*DiscoveryResponse)(nil),             // 1: llmrouter.xds.v1alpha1.DiscoveryResponse
-	(*LLMRouterCluster)(nil),              // 2: llmrouter.xds.v1alpha1.LLMRouterCluster
-	(*LLMRouterEndpointAssignment)(nil),   // 3: llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment
-	(*LLMRouterEndpoint)(nil),             // 4: llmrouter.xds.v1alpha1.LLMRouterEndpoint
-	(*LLMRouterRouting)(nil),              // 5: llmrouter.xds.v1alpha1.LLMRouterRouting
-	(*LLMRouterTenantPipelineConfig)(nil), // 6: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig
-	(*LLMRouterTenantPipelineStep)(nil),   // 7: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
-	(*anypb.Any)(nil),                     // 8: google.protobuf.Any
-	(*structpb.Struct)(nil),               // 9: google.protobuf.Struct
+	(*DiscoveryRequest)(nil),               // 0: llmrouter.xds.v1alpha1.DiscoveryRequest
+	(*DiscoveryResponse)(nil),              // 1: llmrouter.xds.v1alpha1.DiscoveryResponse
+	(*LLMRouterCluster)(nil),               // 2: llmrouter.xds.v1alpha1.LLMRouterCluster
+	(*LLMRouterEndpointAssignment)(nil),    // 3: llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment
+	(*LLMRouterEndpoint)(nil),              // 4: llmrouter.xds.v1alpha1.LLMRouterEndpoint
+	(*LLMRouterRouting)(nil),               // 5: llmrouter.xds.v1alpha1.LLMRouterRouting
+	(*LLMRouterTenantPipelineConfigs)(nil), // 6: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfigs
+	(*LLMRouterTenantPipelineConfig)(nil),  // 7: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig
+	(*LLMRouterTenantPipelineStep)(nil),    // 8: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
+	(*anypb.Any)(nil),                      // 9: google.protobuf.Any
+	(*structpb.Struct)(nil),                // 10: google.protobuf.Struct
 }
 var file_llmrouter_xds_proto_depIdxs = []int32{
-	8, // 0: llmrouter.xds.v1alpha1.DiscoveryResponse.resources:type_name -> google.protobuf.Any
-	4, // 1: llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment.endpoints:type_name -> llmrouter.xds.v1alpha1.LLMRouterEndpoint
-	7, // 2: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig.tenant_pre_routing:type_name -> llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
-	7, // 3: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig.tenant_post_routing:type_name -> llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
-	9, // 4: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep.config:type_name -> google.protobuf.Struct
-	0, // 5: llmrouter.xds.v1alpha1.AggregatedDiscoveryService.StreamAggregatedResources:input_type -> llmrouter.xds.v1alpha1.DiscoveryRequest
-	1, // 6: llmrouter.xds.v1alpha1.AggregatedDiscoveryService.StreamAggregatedResources:output_type -> llmrouter.xds.v1alpha1.DiscoveryResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: llmrouter.xds.v1alpha1.DiscoveryResponse.resources:type_name -> google.protobuf.Any
+	4,  // 1: llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment.endpoints:type_name -> llmrouter.xds.v1alpha1.LLMRouterEndpoint
+	7,  // 2: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfigs.tenants:type_name -> llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig
+	8,  // 3: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig.tenant_pre_routing:type_name -> llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
+	8,  // 4: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig.tenant_post_routing:type_name -> llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep
+	10, // 5: llmrouter.xds.v1alpha1.LLMRouterTenantPipelineStep.config:type_name -> google.protobuf.Struct
+	0,  // 6: llmrouter.xds.v1alpha1.AggregatedDiscoveryService.StreamAggregatedResources:input_type -> llmrouter.xds.v1alpha1.DiscoveryRequest
+	1,  // 7: llmrouter.xds.v1alpha1.AggregatedDiscoveryService.StreamAggregatedResources:output_type -> llmrouter.xds.v1alpha1.DiscoveryResponse
+	7,  // [7:8] is the sub-list for method output_type
+	6,  // [6:7] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_llmrouter_xds_proto_init() }
@@ -657,7 +732,7 @@ func file_llmrouter_xds_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_llmrouter_xds_proto_rawDesc), len(file_llmrouter_xds_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

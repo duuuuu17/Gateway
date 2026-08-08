@@ -11,4 +11,5 @@ var (
 	ErrInvalidRequest     = errors.New("invalid request")
 	ErrStreamUnsupport    = errors.New("streaming unsupport. can't using http flusher!")
 	ErrNotSupportedTenant = errors.New("the tenant not be supported")
+	ErrBackendCantUse     = errors.New("backend LLM pod can't use")
 )

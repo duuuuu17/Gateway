@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -34,6 +35,7 @@ func Init(ctx context.Context, cfg Config) (trace.TracerProvider, func(context.C
 		// 采集后端Pod地址
 		opts := []otlptracegrpc.Option{
 			otlptracegrpc.WithEndpoint(cfg.TracePodEndpoint),
+			otlptracegrpc.WithTimeout(20 * time.Second),
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlptracegrpc.WithInsecure())

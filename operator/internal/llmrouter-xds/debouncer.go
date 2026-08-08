@@ -86,7 +86,7 @@ func (d *ChanDebouncer) push(needUpdate map[XDSType]map[string]struct{}, needRem
 			Type:             XDSType(typ),
 			AffectedServices: updates,
 			RemoveDService:   removes,
-			Full:             false,
+			Full:             false, // delta push
 		}
 	}
 }

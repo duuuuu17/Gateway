@@ -5,7 +5,6 @@ import (
 
 	configv1alpha1 "github.com/duuuuu17/llm-router-operator/api/config/v1alpha1"
 	"github.com/duuuuu17/llm-router-operator/internal/controller/utils"
-	llmrouterxds "github.com/duuuuu17/llm-router-operator/internal/llmrouter-xds"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -13,26 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func NewEvent(typ, service string) llmrouterxds.ReconcilerPushEvent {
-	switch typ {
-	case "cds":
-		return llmrouterxds.ReconcilerPushEvent{
-			Type:             llmrouterxds.CDSType,
-			AffectedServices: []string{service},
-		}
-	case "eds":
-		return llmrouterxds.ReconcilerPushEvent{
-			Type:             llmrouterxds.EDSType,
-			AffectedServices: []string{service},
-		}
-	case "rds":
-		return llmrouterxds.ReconcilerPushEvent{
-			Type:             llmrouterxds.RDSType,
-			AffectedServices: []string{service},
-		}
-	}
-	return llmrouterxds.ReconcilerPushEvent{}
-}
 func (r *LLMRouterConfigReconciler) reconcileFinalizer(ctx context.Context, cr configv1alpha1.LLMRouterConfig) func() (reconcile.Result, error) {
 	if !controllerutil.ContainsFinalizer(&cr, finalizer) {
 		controllerutil.AddFinalizer(&cr, finalizer)

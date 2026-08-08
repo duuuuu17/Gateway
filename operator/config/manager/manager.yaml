@@ -64,8 +64,14 @@ spec:
           - --leader-elect
           - --health-probe-bind-address=:8081
         image: controller:latest
+        imagePullPolicy: Always
         name: manager
-        ports: []
+        ports: 
+        - name: grpc-xds
+          containerPort: 50051
+        # env:
+        # - name: ENABLE_WEBHOOKS
+        #   value: "false"
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false

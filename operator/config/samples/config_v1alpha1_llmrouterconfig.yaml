@@ -7,3 +7,24 @@ metadata:
   name: llmrouterconfig-sample
 spec:
   # TODO(user): Add fields here
+  backends:
+    # backends 是必填项 (required)
+    backends:
+      # 第一个后端配置示例：使用加权轮询
+      - name: "qwen-llm-predictor" # name必须为ServiceName
+        capability:
+          models:
+            - "qwen"
+            - "qwen2.5"
+          protocols:
+            - "openai"
+          port: # 此处必须匹配的是container的Port
+            name: "http-api"
+            number: 8080
+          streaming: true
+        routing:
+          # 针对的service后的Endpoint PodIP的选择
+          selector: "least_conn"  # 必须为 enum 中的值: round_robin, least_conn
+          weight: 80 # 当添加后，默认开启service级的Weighted流量分流
+          priority: 1
+          region: "us-east-1"

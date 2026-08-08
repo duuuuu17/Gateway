@@ -24,6 +24,10 @@ import (
 // TenantPipelineSpec defines the desired state of TenantPipeline
 
 type TenantPipelineSpec struct {
+	Tenants []Tenants `json:"tenants" yaml:"tenants"`
+}
+type Tenants struct {
+	TenantID string        `json:"tenant_id" yaml:"tenantID"`
 	Enabled  bool          `json:"enabled,omitempty" yaml:"enabled"`
 	Pipeline PipelineSteps `json:"pipeline" yaml:"pipeline"`
 }

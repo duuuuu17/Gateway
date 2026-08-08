@@ -69,7 +69,7 @@ func NewMultiBackendLoader(path string) *MultiBackendLoader {
 func (mbl *MultiBackendLoader) Load() (RouterConfig, error) {
 	data, err := os.ReadFile(mbl.path)
 	if err != nil {
-		return RouterConfig{}, fmt.Errorf("can't open the yaml file,Err:%w", err.Error())
+		return RouterConfig{}, fmt.Errorf("can't open the yaml file,Err:%s", err.Error())
 	}
 	if err := yaml.Unmarshal(data, &mbl.backends); err != nil {
 		return RouterConfig{}, err

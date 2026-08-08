@@ -1,0 +1,7 @@
+Gateway-dataplane installing!
+Status:
+kubectl get deploy/{{ include "gateway-dataplane.fullname" . }} -n {{ .Release.Namespace }}
+Logs:
+kubectl logs deploy/{{ include "gateway-dataplane.fullname" . }} -n {{ .Release.Namespace }}
+Metrics/Log:
+using Grafana Dashboard

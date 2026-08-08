@@ -20,11 +20,15 @@ type XDSManager interface {
 	// 不需要ServiceConfig
 	// 因为是使用了K8s原生资源EndpointSlices，其Reconciler获取资源事件是必在已知被监听的Service下执行过滤后得到
 	UpdateOrCreateEDS(serviceName string, endpoints []*LLMRouterEndpoint) bool
+	// Tenants's UID & peer tenantID updated
+	// Coarse-grained update
+	UpsertTDSByUID(tenants *LLMRouterTenantPipelineConfigs) bool
 	IsWatchedService(serviceName string) bool
 	GetServiceConfig(serviceName string) (ServiceConfig, bool)
 	NeedRemovedService(serviceName ...string) []string
 	DeleteAllXDSs() bool
 	DeleteXDSs(serviceNames ...string) bool
+	DeleteTDSCache(tenantID string)
 }
 
 // grpc push using
@@ -32,9 +36,11 @@ type XDSStore interface {
 	GetCDS(services ...string) ([]*LLMRouterCluster, []string)
 	GetEDS(services ...string) ([]*LLMRouterEndpointAssignment, []string)
 	GetRDS(services ...string) ([]*LLMRouterRouting, []string)
+	GetTDS(uids ...string) ([]*LLMRouterTenantPipelineConfigs, []string)
 	GetCDSAll() []*LLMRouterCluster
 	GetEDSAll() []*LLMRouterEndpointAssignment
 	GetRDSAll() []*LLMRouterRouting
+	GetTDSAll() []*LLMRouterTenantPipelineConfigs
 	RefreshSnapshot() error
 }
 
@@ -42,10 +48,12 @@ type XDSStore interface {
 type XDSController struct {
 	watchMu       sync.RWMutex
 	watched       map[string]ServiceConfig
-	CDSController *ResourcesController[*LLMRouterCluster]            // key: servicename
-	RDSController *ResourcesController[*LLMRouterRouting]            // key: servicename
-	EDSController *ResourcesController[*LLMRouterEndpointAssignment] // key: ServiceName
-	snapshot      atomic.Value                                       // *Snapshot
+	CDSController *ResourcesController[*LLMRouterCluster]               // key: servicename
+	RDSController *ResourcesController[*LLMRouterRouting]               // key: servicename
+	EDSController *ResourcesController[*LLMRouterEndpointAssignment]    // key: ServiceName
+	TDSController *ResourcesController[*LLMRouterTenantPipelineConfigs] // key: TDS's namespace/name/UID
+
+	snapshot atomic.Value // *Snapshot
 }
 type ResourcesController[T any] struct {
 	rwMutex   sync.RWMutex
@@ -59,7 +67,7 @@ type ServiceConfig struct {
 }
 
 func NewXDSStorage() *XDSController {
-	return &XDSController{
+	xdsc := &XDSController{
 		watchMu: sync.RWMutex{},
 		watched: map[string]ServiceConfig{},
 		CDSController: &ResourcesController[*LLMRouterCluster]{
@@ -74,7 +82,14 @@ func NewXDSStorage() *XDSController {
 			rwMutex:   sync.RWMutex{},
 			Resources: make(map[string]*LLMRouterEndpointAssignment),
 		},
+		TDSController: &ResourcesController[*LLMRouterTenantPipelineConfigs]{
+			rwMutex:   sync.RWMutex{},
+			Resources: make(map[string]*LLMRouterTenantPipelineConfigs),
+		},
+		snapshot: atomic.Value{},
 	}
+	xdsc.snapshot.Store(&Snapshot{})
+	return xdsc
 }
 func (s *XDSController) RefreshSnapshot() error {
 	if s.BuildSnapshot() {
@@ -192,14 +207,24 @@ func (s *XDSController) UpdateOrCreateEDS(serviceName string, endpoints []*LLMRo
 		ClusterName: serviceName,
 		Endpoints:   es,
 	}
-	oldEndpoints, exists := s.CDSController.Resources[serviceName]
+	oldEndpoints, exists := s.EDSController.Resources[serviceName]
 	if exists && proto.Equal(oldEndpoints, eds) {
 		return false
 	}
 	s.EDSController.Resources[serviceName] = eds
 	return true
 }
+func (s *XDSController) UpsertTDSByUID(newTenants *LLMRouterTenantPipelineConfigs) bool {
+	s.TDSController.rwMutex.Lock()
+	defer s.TDSController.rwMutex.Unlock()
 
+	oldTenants, ok := s.TDSController.Resources[newTenants.GetTenantConfigId()]
+	if ok && proto.Equal(oldTenants, newTenants) {
+		return false
+	}
+	s.TDSController.Resources[newTenants.GetTenantConfigId()] = newTenants
+	return true
+}
 func (s *XDSController) IsWatchedService(serviceName string) bool {
 	s.watchMu.RLock()
 	defer s.watchMu.RUnlock()
@@ -233,7 +258,6 @@ func (s *XDSController) GetServiceConfig(serviceName string) (ServiceConfig, boo
 }
 func (s *XDSController) NeedRemovedService(serviceNames ...string) []string {
 	s.watchMu.Lock()
-	defer s.watchMu.Unlock()
 	desireSet := make(map[string]bool, len(serviceNames))
 	for _, key := range serviceNames {
 		desireSet[key] = true
@@ -244,9 +268,10 @@ func (s *XDSController) NeedRemovedService(serviceNames ...string) []string {
 		if !desireSet[k] {
 			Removekeys = append(Removekeys, k)
 			delete(s.watched, k)
-			s.DeleteXDSCache(k)
 		}
 	}
+	s.watchMu.Unlock()
+	s.DeleteXDSs(Removekeys...)
 	return Removekeys
 }
 func (s *XDSController) DeleteXDSCache(key string) {
@@ -268,6 +293,18 @@ func (s *XDSController) DeleteRDSCache(key string) {
 	s.RDSController.rwMutex.Lock()
 	delete(s.RDSController.Resources, key)
 	s.RDSController.rwMutex.Unlock()
+}
+func getAllTenantIDs(tenants []*LLMRouterTenantPipelineConfig) []string {
+	removeTenantIDs := make([]string, 0, len(tenants))
+	for _, tenant := range tenants {
+		removeTenantIDs = append(removeTenantIDs, tenant.TenantId)
+	}
+	return removeTenantIDs
+}
+func (s *XDSController) DeleteTDSCache(uid string) {
+	s.TDSController.rwMutex.Lock()
+	delete(s.TDSController.Resources, uid)
+	s.TDSController.rwMutex.Unlock()
 }
 func (s *XDSController) DeleteAllXDSs() bool {
 	s.watchMu.Lock()
@@ -309,6 +346,13 @@ func RDSsTransformerToProtoMessages(rdss []*LLMRouterRouting) []proto.Message {
 	resources := make([]proto.Message, 0, len(rdss))
 	for _, rds := range rdss {
 		resources = append(resources, rds)
+	}
+	return resources
+}
+func TDSsTransformerToProtoMessages(tdss []*LLMRouterTenantPipelineConfigs) []proto.Message {
+	resources := make([]proto.Message, 0, len(tdss))
+	for _, tds := range tdss {
+		resources = append(resources, tds)
 	}
 	return resources
 }

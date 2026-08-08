@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -56,14 +55,15 @@ type ClientTypeState struct {
 type XDSType string
 
 const (
-	EDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment"
-	CDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterCluster"
-	RDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterRouting"
-	TDSType XDSType = " type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig"
+	EDSType XDSType = "type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterEndpointAssignment"
+	CDSType XDSType = "type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterCluster"
+	RDSType XDSType = "type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterRouting"
+	TDSType XDSType = "type.googleapis.com.llmrouter.xds.v1alpha1.LLMRouterTenantPipelineConfig"
 )
 
 func NewLLMRouterXDSServer(logger logr.Logger, xdsStore XDSStore, pushCh Debouncer, respVersionCache CacheStreamAggregateResponses) *LLMRouterXDSServer {
 	return &LLMRouterXDSServer{
+
 		Logger:       logger,
 		clients:      make(map[string]*ClientState),
 		Events:       pushCh,
@@ -142,9 +142,11 @@ func (s *LLMRouterXDSServer) StreamAggregatedResources(stream AggregatedDiscover
 				return
 			case resp, ok := <-newClient.SendCh:
 				if !ok {
+					s.Logger.Info("failure send, the send's channel was closed!")
 					// SendCh 已关闭，退出协程
 					return
 				}
+				s.Logger.Info("send response", "response", resp)
 				newClient.Mu.Lock()
 				err := stream.Send(resp)
 				newClient.Mu.Unlock()
@@ -153,7 +155,6 @@ func (s *LLMRouterXDSServer) StreamAggregatedResources(stream AggregatedDiscover
 					s.Logger.Error(err, "failed to send to client", "nodeId", req.NodeId)
 					return
 				}
-
 			}
 		}
 	}()
@@ -167,6 +168,9 @@ func (s *LLMRouterXDSServer) StreamAggregatedResources(stream AggregatedDiscover
 			close(newClient.CloseCh)
 			return nil
 		default:
+		}
+		if err := ctxWithNodeID.Err(); err != nil {
+			return nil
 		}
 		req, err := stream.Recv() // 实际是不许要它主动请求查询的
 		stop, err := s.handleStreamError(err)
@@ -213,7 +217,7 @@ func (s *LLMRouterXDSServer) StreamAggregatedResources(stream AggregatedDiscover
 			typeState.LastNackAt = time.Now()
 			client.LastActiveTime = time.Now()
 			// 工业界：记录日志 + metric
-			slog.Error(req.ErrorDetail,
+			s.Logger.V(0).Info(req.ErrorDetail,
 				"node_id", req.NodeId,
 				"type", req.TypeUrl,
 				"nack_count", typeState.NackCount,
@@ -261,10 +265,12 @@ func (s *LLMRouterXDSServer) LoopHandlePushEventDispatchBus(ctx context.Context)
 		select {
 		// A: 收到新事件
 		case event := <-s.Events.Events():
+			s.Logger.Info("get new events", "event_type", event.Type)
 			if err := s.xdsStore.RefreshSnapshot(); err != nil {
 				s.Logger.Error(err, "grpc server call xds-controller update snapshot failure")
 				continue // 跳过本次的更新处理
 			}
+			// s.Logger.Info("snapshot refresh", "event", event)
 			s.PushDeltaResources(event)
 
 		case <-ctx.Done():
@@ -336,32 +342,40 @@ func (s *LLMRouterXDSServer) buildDeltaDiscoveryResponse(event XDSPushEvent) (*D
 		return nil, fmt.Errorf("empty XDSType")
 	}
 	resp := &DiscoveryResponse{
-		Resources:       make([]*anypb.Any, 0),
+		// Resources:       make([]*anypb.Any, 0),
 		TypeUrl:         string(event.Type),
-		RemoveResources: make([]string, 0),
+		RemoveResources: make([]string, 0, len(event.RemoveDService)),
 	}
 	resources := make([]proto.Message, 0, len(event.AffectedServices))
 	var err error
 	switch event.Type {
 	case EDSType:
 		eds, removeService := s.xdsStore.GetEDS(event.AffectedServices...)
+		// s.Logger.Info("EDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
 		resources = EDSsTransformerToProtoMessages(eds)
 	case CDSType:
 		cds, removeService := s.xdsStore.GetCDS(event.AffectedServices...)
+		// s.Logger.Info("CDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
+		// s.Logger.Info("snapshot-save", "CDS", s.xdsStore.GetCDSAll()[0].GetName())
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
 		resources = CDSsTransformerToProtoMessages(cds)
 	case RDSType:
 		rds, removeService := s.xdsStore.GetRDS(event.AffectedServices...)
+		// s.Logger.Info("RDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
 		resources = RDSsTransformerToProtoMessages(rds)
+	case TDSType: // StoW
+		// tds, removeService := s.xdsStore.GetTDS(event.AffectedServices...)
+		// resp.RemoveResources = append(resp.RemoveResources, removeService...)
+		resources = TDSsTransformerToProtoMessages(s.xdsStore.GetTDSAll())
 	default:
 		s.Logger.Error(nil, "unsupported XDSType", "type", event.Type)
 		return nil, fmt.Errorf("unsupported XDSType")
 	}
 	if resources == nil {
 		s.Logger.V(1).Info("no resource for service", "type", event.Type)
-		return nil, fmt.Errorf("no resource for service")
+		return resp, nil
 	}
 
 	subResource, err := transformerToAnyResource(resources...)
@@ -393,14 +407,17 @@ func (s *LLMRouterXDSServer) buildSToWDiscoveryResponse(event XDSPushEvent) (*Di
 		resources = CDSsTransformerToProtoMessages(s.xdsStore.GetCDSAll())
 	case RDSType:
 		resources = RDSsTransformerToProtoMessages(s.xdsStore.GetRDSAll())
+	case TDSType:
+		resources = TDSsTransformerToProtoMessages(s.xdsStore.GetTDSAll())
 	default:
 		s.Logger.Error(nil, "unsupported XDSType", "type", event.Type)
 		return nil, fmt.Errorf("unsupported XDSType")
 	}
 	if len(resources) == 0 {
 		s.Logger.V(1).Info("no resource for service need push", "type", event.Type)
-		return nil, fmt.Errorf("no resources")
+		resources = make([]proto.Message, 0)
 	}
+
 	respResources, err := transformerToAnyResource(resources...)
 	if err != nil {
 		return nil, fmt.Errorf("xDS convert to anypb failed")
@@ -415,7 +432,7 @@ func (s *LLMRouterXDSServer) buildSToWDiscoveryResponse(event XDSPushEvent) (*Di
 func (s *LLMRouterXDSServer) PushResourcesSotW() error {
 	s.rwMutex.RLock()
 	defer s.rwMutex.RUnlock()
-	for _, xdsType := range []XDSType{EDSType, CDSType, RDSType} {
+	for _, xdsType := range []XDSType{EDSType, CDSType, RDSType, TDSType} {
 		event := XDSPushEvent{
 			Type:             xdsType,
 			AffectedServices: nil,
@@ -441,7 +458,7 @@ func (c *ClientState) sendLoop() {
 	}
 }
 func transformerToAnyResource(resources ...proto.Message) ([]*anypb.Any, error) {
-	anyResources := make([]*anypb.Any, 0)
+	anyResources := make([]*anypb.Any, 0, len(resources))
 	for _, resource := range resources {
 		subResource, err := anypb.New(resource)
 		if err != nil {
@@ -450,7 +467,6 @@ func transformerToAnyResource(resources ...proto.Message) ([]*anypb.Any, error) 
 		anyResources = append(anyResources, subResource)
 	}
 	return anyResources, nil
-
 }
 func (s *LLMRouterXDSServer) cleanupClientResourceCache(ctx context.Context) {
 	nodeID, ok := ctx.Value(nodeIDCtxKey{}).(string)
@@ -570,5 +586,4 @@ func (s *LLMRouterXDSServer) handleStreamError(err error) (bool, error) {
 	return true, status.Errorf(codes.Internal, "stream recv failed: %v", err)
 }
 
-// todo: 实现 heartbeat
-// todo: 实现
+// heartbeat: 返回空消息
