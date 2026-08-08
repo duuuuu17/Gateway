@@ -116,7 +116,7 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.Resp
 		metrics.BackendErrorsTotal.WithLabelValues(resp.Request.Host, resp.Status).Inc()
 		return errs.ErrBackendCantUse
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	// write header to response client
 	for k, v := range resp.Header {
 		switch strings.ToLower(k) {
@@ -128,8 +128,8 @@ func (od *OpenAIOutBoundAdapter) HandleResponse(ctx context.Context, w http.Resp
 	}
 	w.WriteHeader(resp.StatusCode)
 	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
-		metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-model").(string)).Inc()
-		defer metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-model").(string)).Dec()
+		metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Inc()
+		defer metrics.LLMStreamActiveConnections.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Dec()
 		span.AddEvent("streaming response")
 		return od.streamResponse(ctx, w, resp)
 	}
@@ -162,7 +162,7 @@ func (od *OpenAIOutBoundAdapter) streamResponse(ctx context.Context, w http.Resp
 		}
 		n, err := resp.Body.Read(buf) // 读取body
 		if n > 0 {
-			metrics.LLMStreamChunksTotal.WithLabelValues(resp.Request.Host, ctx.Value("x-model").(string)).Inc() // 添加指标
+			metrics.LLMStreamChunksTotal.WithLabelValues(resp.Request.Host, ctx.Value("x-llm-model").(string)).Inc() // 添加指标
 			_, writeErr := w.Write(buf[:n])
 			if writeErr != nil {
 				slog.WarnContext(ctx, "write stream got error: ", "err", writeErr)

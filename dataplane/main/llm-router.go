@@ -27,8 +27,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const configPath = "/etc/llm-router/config/config.yaml"
-const path = "./config.yaml"
+// const configPath = "/etc/llm-router/config/config.yaml"
+// const path = "./config.yaml"
 
 func main() {
 	var grpcServerEndpoint = getEnv("CONTROL_PLANE_ENDPOINT", "localhost:50051")

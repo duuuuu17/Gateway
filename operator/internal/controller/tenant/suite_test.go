@@ -22,9 +22,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,6 +77,24 @@ var _ = BeforeSuite(func() {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
 
+	tenantPipeline := &tenantv1alpha1.TenantPipeline{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-resource",
+			Namespace: "default",
+		},
+		Spec: tenantv1alpha1.TenantPipelineSpec{
+			Tenants: []tenantv1alpha1.Tenants{
+				tenantv1alpha1.Tenants{
+					TenantID: uuid.NewString(),
+					Enabled:  true,
+					Pipeline: tenantv1alpha1.PipelineSteps{
+						PreRouting:  []tenantv1alpha1.PipelineStep{},
+						PostRouting: []tenantv1alpha1.PipelineStep{},
+					},
+				},
+			},
+		},
+	}
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
@@ -82,7 +102,8 @@ var _ = BeforeSuite(func() {
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	// Expect(k8sClient).NotTo(BeNil())
+	Expect(k8sClient.Create(ctx, tenantPipeline)).Should(Succeed())
 })
 
 var _ = AfterSuite(func() {

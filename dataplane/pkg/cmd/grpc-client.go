@@ -95,7 +95,7 @@ func (sc *StreamClient) Run(ctx context.Context, endpoint string) {
 		select {
 		case <-ctx.Done():
 			// 正常退出
-			sc.Conn.Close()
+			sc.Conn.Close() //nolint:errcheck
 			slog.Info("grpc client exiting now", "Stream Client NodeID:", sc.NodeID)
 			return
 		default:
@@ -155,7 +155,7 @@ func (sc *StreamClient) establishStream(ctx context.Context, endpoint string) er
 	return nil
 }
 func (sc *StreamClient) HandleLoop(ctx context.Context) {
-	defer sc.Conn.Close()
+	defer sc.Conn.Close() //nolint:errcheck
 
 	for {
 		select {
@@ -206,10 +206,7 @@ func backoff(retries int) {
 }
 func (sc *StreamClient) hasConfigInMemory() bool {
 	RuntimeBackends := sc.Router.GetConfig()
-	if len(RuntimeBackends) == 0 {
-		return false
-	}
-	return true
+	return len(RuntimeBackends) != 0
 }
 
 func (sc *StreamClient) handleDiscoveryResponse(resp *llmrouterxds.DiscoveryResponse) error {
@@ -372,7 +369,7 @@ func (sc *StreamClient) sendACK(resp *llmrouterxds.DiscoveryResponse) {
 		"typeUrl", resp.TypeUrl,
 		"ACKNonce", resp.Nonce,
 		"ACKVersion", resp.VersionInfo)
-	sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
+	_ = sc.Stream.Send(&llmrouterxds.DiscoveryRequest{
 		TypeUrl:       resp.TypeUrl,
 		VersionInfo:   resp.VersionInfo,
 		ResponseNonce: resp.Nonce,

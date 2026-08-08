@@ -6,9 +6,9 @@ import (
 
 func Healthz(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte("ok"))
+	w.Write([]byte("ok")) //nolint
 }
 func Readyz(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte("readyz"))
+	w.Write([]byte("readyz")) //nolint
 }

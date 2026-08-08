@@ -70,7 +70,7 @@ func TestPickOpenAIAdapter(t *testing.T) {
 	}
 }
 func TestOpenAIBuildHTTPReqeust(t *testing.T) {
-	var a bool = true
+	a := true
 	headers := http.Header{}
 	headers.Set("Content-Type", "application/json,charset=utf-8")
 	r := &core.LLMRequest{
@@ -203,12 +203,12 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if err := ctx.Next(); err != nil {
 		ctx.RespWriter.Header().Set("Content-Type", "application/json")
 		ctx.RespWriter.WriteHeader(500)
-		ctx.RespWriter.Write([]byte(`{"content":"test failure"}`))
+		ctx.RespWriter.Write([]byte(`{"content":"test failure"}`)) //nolint
 		return
 	}
 	ctx.RespWriter.Header().Set("Content-Type", "application/json")
 	ctx.RespWriter.WriteHeader(200)
-	ctx.RespWriter.Write([]byte(`{"content":"test success"}`))
+	ctx.RespWriter.Write([]byte(`{"content":"test success"}`)) //nolint
 }
 
 type InboundRegistryHandler struct {

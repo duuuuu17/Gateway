@@ -62,7 +62,7 @@ func Init(ctx context.Context, cfg Config) (trace.TracerProvider, func(context.C
 			)),
 		)
 		shutdown = func(ctx context.Context) {
-			tp.(*sdktrace.TracerProvider).Shutdown(ctx)
+			tp.(*sdktrace.TracerProvider).Shutdown(ctx) //nolint:errcheck
 		}
 	}
 	//  全局注册

@@ -113,5 +113,5 @@ func TestRouter_SelectBackend(t *testing.T) {
 	t.Logf("%+v", backendCfg)
 	outboundReg := outbound.NewOutBoundAdapterRegistry()
 	outboundReg.AddOutboundRegistry("openai", outbound.NewOpenAIOutBoundAdapter())
-	outboundReg.GetAdapter(backendCfg.Capabilty.Protocols)
+	outboundReg.GetAdapter(backendCfg.Capabilty.Protocols) //nolint:errcheck
 }

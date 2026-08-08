@@ -62,10 +62,10 @@ func defaultErrorHandler(ce *ContextErr, err error) {
 		"false",
 	).Inc()
 	if ce.ResponseWriter.Header().Get("status") == "200" {
-		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", 500)
+		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", http.StatusServiceUnavailable)
 		return
 	}
-	http.Error(ce.ResponseWriter, "internal server error", 500)
+	http.Error(ce.ResponseWriter, "internal server error", http.StatusServiceUnavailable)
 }
 func default503ErrorHandler(ce *ContextErr, err error) {
 
@@ -75,14 +75,14 @@ func default503ErrorHandler(ce *ContextErr, err error) {
 	metrics.HTTPRequestTotal.WithLabelValues(
 		ce.Req.Method,
 		metrics.GetPathTemplate(ce.Req.URL.Path),
-		strconv.Itoa(503),
+		strconv.Itoa(http.StatusServiceUnavailable),
 		"false",
 	).Inc()
 	if ce.ResponseWriter.Header().Get("status") == "200" {
-		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", 503)
+		slog.WarnContext(ce.Req.Context(), "internal server error", "status_code", http.StatusServiceUnavailable)
 		return
 	}
-	http.Error(ce.ResponseWriter, "internal server error", 503)
+	http.Error(ce.ResponseWriter, "internal server error", http.StatusServiceUnavailable)
 }
 
 func errStreamUnsupport(ce *ContextErr, err error) {
@@ -96,7 +96,7 @@ func errStreamUnsupport(ce *ContextErr, err error) {
 		"500",
 		"false",
 	).Inc()
-	http.Error(ce.ResponseWriter, "internal server error", 500)
+	http.Error(ce.ResponseWriter, "internal server error", http.StatusServiceUnavailable)
 }
 func errInvalidRequest(ce *ContextErr, err error) {
 
@@ -122,7 +122,7 @@ func errNotMatchingBackend(ce *ContextErr, err error) {
 		"500",
 		"false",
 	).Inc()
-	http.Error(ce.ResponseWriter, "internal server error", 500)
+	http.Error(ce.ResponseWriter, "internal server error", http.StatusInternalServerError)
 }
 func errUnsupportProtocol(ce *ContextErr, err error) {
 
@@ -161,7 +161,7 @@ func errBackend5xxFunc(ce *ContextErr, err error) {
 	metrics.BackendErrorsTotal.
 		WithLabelValues("5xx").
 		Inc()
-	http.Error(ce.ResponseWriter, "backend service unavailable", 500)
+	http.Error(ce.ResponseWriter, "backend service unavailable", http.StatusServiceUnavailable)
 }
 
 func errClientCancel(ce *ContextErr, err error) {

@@ -60,7 +60,7 @@ func (le *LeastConnSelector) Select(endpoints []*Endpoint) (*Endpoint, error) {
 	if size == 0 {
 		return nil, errors.ErrUnsupported
 	}
-	var minCounter int64 = endpoints[0].ActiveConn.Load()
+	minCounter := endpoints[0].ActiveConn.Load()
 	minLeastConnObj := endpoints[0]
 	for _, e := range endpoints {
 		// fmt.Printf("endpoint:%s,activeConn:%d\n", e.Address, e.ActiveConn.Load())

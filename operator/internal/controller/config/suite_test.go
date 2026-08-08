@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,7 +75,37 @@ var _ = BeforeSuite(func() {
 	if getFirstFoundEnvTestBinaryDir() != "" {
 		testEnv.BinaryAssetsDirectory = getFirstFoundEnvTestBinaryDir()
 	}
-
+	port := int32(80)
+	tru := true
+	CDS := &configv1alpha1.LLMRouterConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-llmrouter-config",
+			Namespace: "default",
+		},
+		Spec: configv1alpha1.LLMRouterConfigSpec{
+			Backends: &configv1alpha1.BackendConfig{
+				Backends: []configv1alpha1.Backend{
+					configv1alpha1.Backend{
+						Name: "endpoint1",
+						Capability: &configv1alpha1.Capability{
+							Models:    []string{"qwen2"},
+							Protocols: []string{"openai"},
+							Endpoints: []string{"127.0.0.1:8080"},
+							Port: &configv1alpha1.Port{
+								Number: &port,
+								Name:   "http",
+							},
+							Streaming: &tru,
+						},
+						Routing: &configv1alpha1.Routing{
+							Weight:   &port,
+							Selector: "round_robin",
+							Region:   "cn-1",
+						},
+					},
+				},
+			},
+		}}
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
@@ -82,7 +113,8 @@ var _ = BeforeSuite(func() {
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+	// Expect(k8sClient).NotTo(BeNil())
+	Expect(k8sClient.Create(ctx, CDS)).Should(Succeed())
 })
 
 var _ = AfterSuite(func() {
@@ -101,7 +133,7 @@ var _ = AfterSuite(func() {
 // setting the 'KUBEBUILDER_ASSETS' environment variable. To ensure the binaries are
 // properly set up, run 'make setup-envtest' beforehand.
 func getFirstFoundEnvTestBinaryDir() string {
-	basePath := filepath.Join("..", "..", "bin", "k8s")
+	basePath := filepath.Join("..", "..", "..", "bin", "k8s")
 	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read directory", "path", basePath)
