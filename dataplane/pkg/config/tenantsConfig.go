@@ -66,7 +66,10 @@ func (g *TenantCfg) LoadFromYamlFile() error {
 
 func (g *TenantCfg) WatchFile(ctx context.Context) {
 	watcher, _ := fsnotify.NewWatcher()
-	watcher.Add(g.FilePath)
+	if err := watcher.Add(g.FilePath); err != nil {
+		slog.Warn("watch file failure")
+		return
+	}
 	var lastTIme time.Time
 	const fixedDelayTime = time.Millisecond * 500
 	slog.Info("Tenanat YAML file watcher 已启动")
