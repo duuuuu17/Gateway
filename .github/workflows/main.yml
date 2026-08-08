@@ -1,0 +1,57 @@
+name: Build and Push to ACR via OIDC
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # 必须打开，才能请求 OIDC token
+  contents: read
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    env:
+      ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
+      CONTROLLER_IMAGE_NAME: ${{ vars.ACR_REPOSITORY }}/${{ vars.TEST_IMAGE_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Alibaba Cloud credentials (OIDC)
+        uses: aliyun/configure-aliyun-credentials-action@v1
+        # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
+        with:
+          role-to-assume: ${{ vars.ALIYUN_ROLE_ARN }} # RAM Role
+          oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
+          audience: 'sts.aliyuncs.com'   # 和 RAM OIDC IdP 的 Client ID 保持一致
+
+      - name: Login to ACR with temp token
+        id: acr-login
+        # reference document: https://www.alibabacloud.com/help/zh/acr/user-guide/configure-access-credentials
+        run: |
+          # 使用临时凭证调用 GetAuthorizationToken，获取 Registry 临时用户名和密码
+          TEMP_JSON=$(aliyun cr GetAuthorizationToken \
+            --endpoint "cr.${{ vars.ACR_REGION }}.aliyuncs.com" \
+            --InstanceId "${{ vars.ACR_INSTANCE_ID }}" \
+            --RegionId "${{ vars.ACR_REGION }}" \
+            --output cols=TempUsername,AuthorizationToken rows=1)
+          TEMP_USER=$(echo "$TEMP_JSON" | jq -r '.TempUsername')
+          TEMP_PASS=$(echo "$TEMP_JSON" | jq -r '.AuthorizationToken')
+
+          # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
+          echo "${TEMP_PASS}" | docker login \
+            --username "${TEMP_USER}" \
+            --password-stdin \
+            "${{ vars.ACR_NEWVERSION_REGISTRY }}"
+          
+          # "${{ env.ACR_REGISTRY }}"
+          # 可选：设置输出供后续步骤使用
+          echo "acr_user=${TEMP_USER}" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ env.CONTROLLER_IMAGE_NAME }}:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
