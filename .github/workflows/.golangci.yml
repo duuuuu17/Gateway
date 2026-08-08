@@ -1,0 +1,29 @@
+# .golangci.yml
+linters:
+  enable:
+    - staticcheck
+    - gosec
+    - govet
+    - errcheck
+    - ineffassign
+
+issues:
+  exclude-rules:
+    # 测试文件里，关闭 errcheck / staticcheck 等
+    - path: _test\.go
+      linters:
+        - errcheck
+        - staticcheck
+        - gosec
+    # === 关闭对_test.go的golint
+    # 指定测试目录
+    - path: test/integration
+      linters:
+        - errcheck
+        - staticcheck
+        - gosec
+    - path: test/unit
+      linters:
+        - errcheck
+        - staticcheck
+        - gosec
