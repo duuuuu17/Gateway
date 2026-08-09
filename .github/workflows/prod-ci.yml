@@ -118,7 +118,7 @@ jobs:
           # 和 RAM OIDC IdP 的 Client ID 保持一致
           role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
           oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
-          audience: 'sts.aliyuncs.com'
+          audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
           role-session-expiration: 1800  # 会话过期时间
           role-session-name: 'github-action-session'  # 会话名称
 
