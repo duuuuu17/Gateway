@@ -121,13 +121,13 @@ jobs:
           role-session-expiration: 1800  # 会话过期时间
           role-session-name: 'github-action-session'  # 会话名称
       
-      - name: Login to ACR
-        uses: aliyun/acr-login@v1 
-        with:
-          # 直接指定你的 ACR 注册表地址, 以及相关的STS Token的相关身份凭证参数
-          login-server: ${{ env.ACR_NEWVERSION_REGISTRY }}
-          username: "${{ secrets.REGISTRY_USERNAME }}"
-          password: "${{ secrets.REGISTRY_PASSWORD }}"
+      # - name: Login to ACR
+      #   uses: aliyun/acr-login@v1 
+      #   with:
+      #     # 直接指定你的 ACR 注册表地址, 以及相关的STS Token的相关身份凭证参数
+      #     login-server: ${{ env.ACR_NEWVERSION_REGISTRY }}
+      #     username: "${{ secrets.REGISTRY_USERNAME }}"
+      #     password: "${{ secrets.REGISTRY_PASSWORD }}"
           # access-key-id: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_ID }}
           # access-key-secret: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
           # security-token: ${{ env.ALIBABA_CLOUD_SECURITY_TOKEN }}
@@ -160,13 +160,15 @@ jobs:
       #     echo "user=${TEMP_USER}" >> "$GITHUB_OUTPUT"
       #     echo "pass=${TEMP_PASS}" >> "$GITHUB_OUTPUT"
       
-      # # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
-      # - name: Login to ACR
-      #   uses: docker/login-action@v4
-      #   with:
-      #     registry: ${{ vars.ACR_NEWVERSION_REGISTRY }}
-      #     username: ${{ steps.acr-token.outputs.user }}
-      #     password: ${{ steps.acr-token.outputs.pass }}
+      # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
+      - name: Login to ACR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.ACR_NEWVERSION_REGISTRY }}
+          # username: ${{ steps.acr-token.outputs.user }}
+          # password: ${{ steps.acr-token.outputs.pass }}
+          username: "${{ secrets.REGISTRY_USERNAME }}"
+          password: "${{ secrets.REGISTRY_PASSWORD }}"
 
       - name: push image
         # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
