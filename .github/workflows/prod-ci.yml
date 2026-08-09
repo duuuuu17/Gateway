@@ -90,9 +90,33 @@ jobs:
         run: |
           caculatedSha=$(git rev-parse --short ${{ github.sha }})
           echo "COMMIT_SHA_SHORT=$caculatedSha" >> $GITHUB_ENV
+      
+      # - name: Configure Alibaba Cloud credentials (OIDC)
+      #   uses: aliyun/configure-aliyun-credentials-action@v1
+      #   # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
+      #   with:
+      #     # 和 RAM OIDC IdP 的 Client ID 保持一致
+      #     role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
+      #     oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
+      #     audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
+      #     role-session-expiration: 1800  # 会话过期时间
+      #     role-session-name: 'github-action-session'  # 会话名称
+      
+      - name: Login to ACR
+        uses: aliyun/acr-login@v1 
+        with:
+          # 直接指定你的 ACR 注册表地址, 以及相关的STS Token的相关身份凭证参数
+          login-server: ${{ env.ACR_NEWVERSION_REGISTRY }}
+          # access-key-id: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          # access-key-secret: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          # security-token: ${{ env.ALIBABA_CLOUD_SECURITY_TOKEN }}
+          # region-id: ${{ vars.ACR_REGION }}
+          # instance-id: ${{ vars.ACR_INSTANCE_ID }}
+          username: "${{ secrets.REGISTRY_USERNAME }}"
+          password: "${{ secrets.REGISTRY_PASSWORD }}"
+
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        
       - name: Build Docker Image (Locally)
         uses: docker/build-push-action@v5
         with:
@@ -100,78 +124,21 @@ jobs:
           file: ./${{ matrix.directory }}/Dockerfile
           push: false
           tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
-          outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
+          # outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
       
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
+          # input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
+          image-ref: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
           format: 'table'
           exit-code: '1' # 发现漏洞则失败
           severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
       
-      - name: Configure Alibaba Cloud credentials (OIDC)
-        uses: aliyun/configure-aliyun-credentials-action@v1
-        # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
-        with:
-          # 和 RAM OIDC IdP 的 Client ID 保持一致
-          role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
-          oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
-          audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
-          role-session-expiration: 1800  # 会话过期时间
-          role-session-name: 'github-action-session'  # 会话名称
-      
-      # - name: Login to ACR
-      #   uses: aliyun/acr-login@v1 
-      #   with:
-      #     # 直接指定你的 ACR 注册表地址, 以及相关的STS Token的相关身份凭证参数
-      #     login-server: ${{ env.ACR_NEWVERSION_REGISTRY }}
-          # access-key-id: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_ID }}
-          # access-key-secret: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
-          # security-token: ${{ env.ALIBABA_CLOUD_SECURITY_TOKEN }}
-          # region-id: ${{ vars.ACR_REGION }}
-          # instance-id: ${{ vars.ACR_INSTANCE_ID }}
-          #     username: "${{ secrets.REGISTRY_USERNAME }}"
-          #     password: "${{ secrets.REGISTRY_PASSWORD }}"
-      # - name: Install Aliyun CLI
-      #   run: |
-      #     wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
-      #     tar -xzf aliyun-cli-linux-latest-amd64.tgz
-      #     chmod +x aliyun
-      #     sudo mv aliyun /usr/local/bin/
-      #     aliyun version # 验证安装成功
 
-      # - name: Login to ACR with temp token
-      #   id: acr-token
-      #   # reference document: https://www.alibabacloud.com/help/zh/acr/user-guide/configure-access-credentials
-      #   run: |
-      #     # 使用临时凭证调用 GetAuthorizationToken, 获取 Registry 临时用户名和密码
-      #     TEMP_JSON=$(aliyun cr GetAuthorizationToken \
-      #       --endpoint "cr.${{ vars.ACR_REGION }}.aliyuncs.com" \
-      #       --InstanceId "${{ vars.ACR_INSTANCE_ID }}" \
-      #       --RegionId "${{ vars.ACR_REGION }}" \
-      #       --output cols=TempUsername,AuthorizationToken rows=1)
-      #     TEMP_USER=$(echo "$TEMP_JSON" | jq -r '.TempUsername')
-      #     TEMP_PASS=$(echo "$TEMP_JSON" | jq -r '.AuthorizationToken')
-          
-      #     # "${{ env.ACR_REGISTRY }}"
-      #     # 可选：设置输出供后续步骤使用
-      #     # 输出给 docker/login-action 使用
-      #     echo "user=${TEMP_USER}" >> "$GITHUB_OUTPUT"
-      #     echo "pass=${TEMP_PASS}" >> "$GITHUB_OUTPUT"
-      
-      # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
-      - name: Login to ACR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ vars.ACR_NEWVERSION_REGISTRY }}
-          # username: ${{ steps.acr-token.outputs.user }}
-          # password: ${{ steps.acr-token.outputs.pass }}
-          username: "${{ secrets.REGISTRY_USERNAME }}"
-          password: "${{ secrets.REGISTRY_PASSWORD }}"
 
       - name: push image
         # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
+          # docker build -t ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }} -f ./${{ matrix.directory }}/Dockerfile  ./${{ matrix.directory }}
         run: |
-          docker build -t ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }} -f ./${{ matrix.directory }}/Dockerfile  ./${{ matrix.directory }}
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
