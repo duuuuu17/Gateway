@@ -132,9 +132,7 @@ func TestRouter_Forward(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	storage := NewFakeQwenCfg()
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	// 调用config模块进行主动初始化
 	// loader := config.NewYAMLLoader(path)
 	candidates, _ := core.FilterCandidates(llmReq, &storage.RouterConfig)
