@@ -61,9 +61,12 @@ jobs:
       
       - name: Install dependencies (only for operator directory)
         if: matrix.directory == 'operator'
+        working-directory: operator
         run: |
+          echo "Current directory: $(pwd)"
           make kustomize
           make controller-gen
+          make install
 
       - name: Run Test
         working-directory: ${{ matrix.directory }}
