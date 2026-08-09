@@ -152,9 +152,10 @@ func (r *LLMRouterConfigReconciler) UpdateReconcile(ctx context.Context, backend
 		// Phase 1: 处理 Create 和 Update
 		// ===========================
 		// isChange := false
-		if r.XDSManager.UpdateOrCreateServiceConfig(serviceName, serviceCfg) {
-			// isChange = true
-		}
+		// if r.XDSManager.UpdateOrCreateServiceConfig(serviceName, serviceCfg) {
+		// 	// isChange = true
+		// }
+		_ = r.XDSManager.UpdateOrCreateServiceConfig(serviceName, serviceCfg)
 		if r.XDSManager.UpdateOrCreateCDS(serviceName, cluster, serviceCfg) {
 			// isChange = true
 			dirtyEvents = append(dirtyEvents, llmrouterxds.NewEvent(TypeCDS, serviceName, false))

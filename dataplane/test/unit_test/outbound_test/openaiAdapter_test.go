@@ -1,4 +1,4 @@
-package outboundtest
+package outbound_test
 
 import (
 	"context"

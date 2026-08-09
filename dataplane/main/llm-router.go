@@ -71,11 +71,13 @@ func main() {
 	mux.HandleFunc("/", handler.TraceMiddleware(excluder)(route.ServeHTTP))
 	// http.Handle("/", route)
 	apiServe := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+		Addr:        ":8080",
+		Handler:     mux,
+		ReadTimeout: 30,
 	}
 	metricsMux := http.NewServeMux()
 	metricsMux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
+	// nolint
 	metricsApiServe := &http.Server{
 		Addr:    ":9090",
 		Handler: metricsMux,
@@ -84,8 +86,9 @@ func main() {
 	readinessHealthzMux.HandleFunc("/healthz", metrics.Healthz)
 	readinessHealthzMux.HandleFunc("/readyz", metrics.Readyz)
 	healthzApiServe := &http.Server{
-		Addr:    ":8082",
-		Handler: readinessHealthzMux,
+		Addr:        ":8082",
+		Handler:     readinessHealthzMux,
+		ReadTimeout: 5,
 	}
 	// Client与控制面的grpc server构建tcp连接
 	endpointSelector := config.NewSelectorRegistry()

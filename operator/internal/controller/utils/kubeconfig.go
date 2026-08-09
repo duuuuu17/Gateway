@@ -26,7 +26,8 @@ func GetKubeClient() (*kubernetes.Clientset, error) {
 func LoadKubeConfigFromLocalForDevUsing(path string) (kubernetes.Interface, error) {
 	kubeconfig, err := clientcmd.BuildConfigFromFlags("", path)
 	if err != nil {
-		kubeconfig, err = GenerateKubeconfig()
+		kubeconfig, _ = GenerateKubeconfig()
+
 	}
 	return kubernetes.NewForConfig(kubeconfig)
 }

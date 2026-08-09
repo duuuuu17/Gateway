@@ -22,7 +22,7 @@ func ParseXDSKey(key string) (XDSType, string) {
 }
 func setToKeysSlice(m map[string]struct{}) []string {
 	res := make([]string, 0, len(m))
-	for key, _ := range m {
+	for key := range m {
 		res = append(res, key)
 	}
 	return res

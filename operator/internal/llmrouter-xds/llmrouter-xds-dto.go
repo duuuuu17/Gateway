@@ -142,13 +142,13 @@ type PipelineStep struct {
 }
 
 func NewTenantsDTO(cr *tenantv1alpha1.TenantPipeline) (*TenantsDTO, error) {
-	result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.ObjectMeta.UID)}, "/")
+	result := strings.Join([]string{cr.Namespace, cr.Name, string(cr.UID)}, "/")
 	ts := &TenantsDTO{
 		rawCR:     cr,
 		ConfigUID: result,
 	}
 	if len(cr.Spec.Tenants) == 0 {
-		return nil, fmt.Errorf("CR tenants is nil! CR objectMeta.UID:%s", string(cr.ObjectMeta.UID))
+		return nil, fmt.Errorf("CR tenants is nil! CR objectMeta.UID:%s", string(cr.UID))
 	}
 	ts.Tenants = make([]*TenantSpec, 0, len(cr.Spec.Tenants))
 	for _, cfg := range cr.Spec.Tenants {

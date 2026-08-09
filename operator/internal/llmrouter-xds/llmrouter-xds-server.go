@@ -357,27 +357,27 @@ func (s *LLMRouterXDSServer) buildDeltaDiscoveryResponse(event XDSPushEvent) (*D
 		eds, removeService := s.xdsStore.GetEDS(event.AffectedServices...)
 		// s.Logger.Info("EDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
-		resources = EDSsTransformerToProtoMessages(eds)
+		resources = append(resources, EDSsTransformerToProtoMessages(eds)...)
 	case CDSType:
 		cds, removeService := s.xdsStore.GetCDS(event.AffectedServices...)
 		// s.Logger.Info("CDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
 		// s.Logger.Info("snapshot-save", "CDS", s.xdsStore.GetCDSAll()[0].GetName())
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
-		resources = CDSsTransformerToProtoMessages(cds)
+		resources = append(resources, CDSsTransformerToProtoMessages(cds)...)
 	case RDSType:
 		rds, removeService := s.xdsStore.GetRDS(event.AffectedServices...)
 		// s.Logger.Info("RDSsnapshot_needRemoveServices", "removeServiceServicename", removeService, "EventRemoveService", event.RemoveDService, "addEvents", event.AffectedServices)
 		resp.RemoveResources = append(resp.RemoveResources, removeService...)
-		resources = RDSsTransformerToProtoMessages(rds)
+		resources = append(resources, RDSsTransformerToProtoMessages(rds)...)
 	case TDSType: // StoW
 		// tds, removeService := s.xdsStore.GetTDS(event.AffectedServices...)
 		// resp.RemoveResources = append(resp.RemoveResources, removeService...)
-		resources = TDSsTransformerToProtoMessages(s.xdsStore.GetTDSAll())
+		resources = append(resources, TDSsTransformerToProtoMessages(s.xdsStore.GetTDSAll())...)
 	default:
 		s.Logger.Error(nil, "unsupported XDSType", "type", event.Type)
 		return nil, fmt.Errorf("unsupported XDSType")
 	}
-	if resources == nil {
+	if len(resources) == 0 {
 		s.Logger.V(1).Info("no resource for service", "type", event.Type)
 		return resp, nil
 	}

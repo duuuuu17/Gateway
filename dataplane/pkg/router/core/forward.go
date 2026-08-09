@@ -54,6 +54,7 @@ func (hf *HTTPForward) Do(req *http.Request) (*http.Response, error) {
 	// defer span.End()
 	// 注入当前otel上下文到http头，并发送给后端Pod扩展该Trace
 	otel.GetTextMapPropagator().Inject(req.Context(), propagation.HeaderCarrier(req.Header))
+	// nolint
 	return hf.Client.Do(req)
 }
 

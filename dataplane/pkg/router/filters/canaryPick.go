@@ -18,7 +18,8 @@ type WeightedRandomFilter struct {
 func NewWeightedRandomFilter() *WeightedRandomFilter {
 	return &WeightedRandomFilter{
 		// 生成随机数，以时间为种子
-		localRand: rand.New(rand.New(rand.NewSource(time.Now().UnixNano()))),
+		// nolint
+		localRand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 func (m *WeightedRandomFilter) Filter(candidates []*config.RuntimeBackend) (*config.RuntimeBackend, error) {

@@ -95,7 +95,11 @@ func (sc *StreamClient) Run(ctx context.Context, endpoint string) {
 		select {
 		case <-ctx.Done():
 			// 正常退出
-			sc.Conn.Close() //nolint:errcheck
+			// nolint:errcheck
+			if err := sc.Conn.Close(); err != nil {
+				slog.Warn("grpc client exiting error", "Stream Client NodeID:", sc.NodeID)
+				return
+			}
 			slog.Info("grpc client exiting now", "Stream Client NodeID:", sc.NodeID)
 			return
 		default:
@@ -143,8 +147,8 @@ func (sc *StreamClient) establishStream(ctx context.Context, endpoint string) er
 	stream, err := client.StreamAggregatedResources(ctx)
 	if err != nil {
 		// 记得关闭底层连接，防止泄漏
-		conn.Close() //nolint:errcheck
-		slog.Error("连接服务端失败", "error: ", err)
+		err = conn.Close()
+		slog.Error("连接服务端失败", "[error]: ", err)
 		return err
 	}
 	// save some the grpc-client infos into StreamClient

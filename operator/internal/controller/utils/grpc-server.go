@@ -15,14 +15,20 @@ var (
 	grpcLogger logr.Logger
 )
 
-func NewRPCListenerAndRegistryLLMRouterxDS(log logr.Logger, port string,
-	xdsStore llmrouterxds.XDSStore, pushCh llmrouterxds.Debouncer,
-	respVersionCache llmrouterxds.CacheStreamAggregateResponses) (*llmrouterxds.LLMRouterXDSServer, error) {
-	grpcLogger = log
-	if !strings.HasPrefix(port, ":50051") {
-		port = ":" + port
+type DependenciesRPCListenerAndRegistryLLMRouterxDS struct {
+	Log              logr.Logger
+	Port             string
+	XdsStore         llmrouterxds.XDSStore
+	PushCh           llmrouterxds.Debouncer
+	RespVersionCache llmrouterxds.CacheStreamAggregateResponses
+}
+
+func NewRPCListenerAndRegistryLLMRouterxDS(dep *DependenciesRPCListenerAndRegistryLLMRouterxDS) (*llmrouterxds.LLMRouterXDSServer, error) {
+	grpcLogger = dep.Log
+	if !strings.HasPrefix(dep.Port, ":50051") {
+		dep.Port = ":" + dep.Port
 	}
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", dep.Port)
 	if err != nil {
 		return nil, err
 	}
@@ -32,9 +38,9 @@ func NewRPCListenerAndRegistryLLMRouterxDS(log logr.Logger, port string,
 		grpc.ChainStreamInterceptor(streamLogInterceptorSlog), // 流拦截器（日志）
 	)
 
-	llmrouterxdsServer := llmrouterxds.NewLLMRouterXDSServer(grpcLogger, xdsStore, pushCh, respVersionCache)
+	llmrouterxdsServer := llmrouterxds.NewLLMRouterXDSServer(grpcLogger, dep.XdsStore, dep.PushCh, dep.RespVersionCache)
 	llmrouterxds.RegisterAggregatedDiscoveryServiceServer(GRPCSever, llmrouterxdsServer)
-	grpcLogger.Info("Strating grpc server", "port", port)
+	grpcLogger.Info("Strating grpc server", "port", dep.Port)
 	go func() {
 		if err := GRPCSever.Serve(lis); err != nil || err != grpc.ErrServerStopped {
 			grpcLogger.Error(err, "grpc server exits not execpted!")

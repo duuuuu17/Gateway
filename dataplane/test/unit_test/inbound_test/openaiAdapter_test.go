@@ -1,4 +1,4 @@
-package inboundtest
+package inbound_test
 
 import (
 	"bytes"

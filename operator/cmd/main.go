@@ -118,7 +118,13 @@ func main() {
 	// start grpc server && registry LLMRouterServer in grpc
 	grpcLogger := ctrl.Log.WithName("grpc-server")
 	respVersionCache := llmrouterxds.NewRespVersionCache(15)
-	llmRouterxdsServer, err := utils.NewRPCListenerAndRegistryLLMRouterxDS(grpcLogger, ":50051", xdsController, pushCh, respVersionCache)
+	llmRouterxdsServer, err := utils.NewRPCListenerAndRegistryLLMRouterxDS(
+		&utils.DependenciesRPCListenerAndRegistryLLMRouterxDS{
+			Log:              grpcLogger,
+			Port:             ":50051",
+			XdsStore:         xdsController,
+			PushCh:           pushCh,
+			RespVersionCache: respVersionCache})
 	if err != nil {
 		grpcLogger.Error(err, "can't establish grpc listener", err.Error())
 		return

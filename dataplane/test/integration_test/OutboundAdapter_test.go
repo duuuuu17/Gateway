@@ -10,7 +10,7 @@ import (
 
 	"github.com/duuuuu17/llm-router-operator/pkg/router/filters"
 	"github.com/duuuuu17/llm-router-operator/pkg/router/inbound"
-	router "github.com/duuuuu17/llm-router-operator/test/integration/router_test"
+	router "github.com/duuuuu17/llm-router-operator/test/integration_test/router_test"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/duuuuu17/llm-router-operator/pkg/router/core"
@@ -140,7 +140,7 @@ func TestRouter_Forward(t *testing.T) {
 	candidates, _ := core.FilterCandidates(llmReq, &storage.RouterConfig)
 	strategy := core.ResolveStrategy(llmReq)
 	selectors := filters.NewSelectorRegistry()
-	selectors.AddSelector("FirstPick", filters.NewPickFirstFilterPlicy())
+	selectors.AddSelector("default", filters.NewPickFirstFilterPlicy())
 	sele, err := selectors.GetFilter(strategy)
 	if err != nil {
 		t.Fatal(err)

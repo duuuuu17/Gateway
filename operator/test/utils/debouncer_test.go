@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ func TestDebouncerInstance(t *testing.T) {
 			AffectedServices: []string{fmt.Sprintf("svc-%d", i)},
 		})
 	}
+	mux := sync.Mutex{}
 	grpcServerEvents := make([]llmrouterxds.XDSPushEvent, 0, 5)
 	debouncer.Start()
 	ctx, cancel := context.WithCancel(context.TODO())
@@ -47,8 +49,10 @@ func TestDebouncerInstance(t *testing.T) {
 	go func(ctx context.Context) {
 		for {
 			select {
-			case ev := <-debouncer.Events():
+			case ev, _ := <-debouncer.Events():
+				mux.Lock()
 				grpcServerEvents = append(grpcServerEvents, ev)
+				mux.Unlock()
 			case <-ctx.Done():
 				return
 			}
@@ -58,16 +62,15 @@ func TestDebouncerInstance(t *testing.T) {
 	// 结果
 	timeout := time.NewTimer(5 * time.Second)
 	for {
-		i := 0
-		for _, ev := range grpcServerEvents {
-			i += len(ev.AffectedServices)
-		}
-		fmt.Println(i)
-		if i == 5 {
+		mux.Lock()
+		if len(grpcServerEvents) == 5 {
+			mux.Unlock()
 			break
 		}
+		mux.Unlock()
 		select {
 		case <-timeout.C:
+			timeout.Stop()
 			cancel()
 			debouncer.Stop()
 			return
@@ -77,4 +80,5 @@ func TestDebouncerInstance(t *testing.T) {
 	t.Log("Debouncer Successful")
 	cancel()
 	debouncer.Stop()
+	timeout.Stop()
 }

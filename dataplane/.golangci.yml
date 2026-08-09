@@ -1,4 +1,7 @@
 # .golangci.yml
+version: "2"
+run:
+  allow-parallel-runners: true
 linters:
   enable:
     - staticcheck
@@ -7,8 +10,8 @@ linters:
     - errcheck
     - ineffassign
   exclusions:
-    rules:
-      - path: '(.+)_test\.go'
+    paths:
+      - '(.+)_test\.go'
 
 
 # issues:

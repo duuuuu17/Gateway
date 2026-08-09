@@ -73,6 +73,7 @@ func (d *ChanDebouncer) Start() {
 }
 
 func (d *ChanDebouncer) Stop() {
+	d.stop <- struct{}{}
 	close(d.stop)
 }
 func (d *ChanDebouncer) push(needUpdate map[XDSType]map[string]struct{}, needRemove map[XDSType]map[string]struct{}) {
