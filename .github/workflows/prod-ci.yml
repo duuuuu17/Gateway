@@ -141,11 +141,10 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ${{ vars.ACR_NEWVERSION_REGISTRY }}
-          username: "${{ secrets.ACCESS_KEY_ID }}"
-          password: "${{ secrets.ACCESS_KEY_SECRET }}"  
+          username: "${{ secrets.REGISTRY_USERNAME }}"
+          password: "${{ secrets.REGISTRY_PASSWORD }}"
 
       - name: push image
-        # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
-          # docker build -t ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }} -f ./${{ matrix.directory }}/Dockerfile  ./${{ matrix.directory }}
+
         run: |
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
