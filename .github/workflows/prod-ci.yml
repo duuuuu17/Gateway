@@ -1,4 +1,4 @@
-name: Build and Push to ACR via OIDC
+name: Build and Push to ACR
 
 on:
   push:
@@ -113,13 +113,12 @@ jobs:
           file: ./${{ matrix.directory }}/Dockerfile
           push: false
           tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
-          # outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
+          outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          # input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
-          image-ref: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+          input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
           format: 'table'
           exit-code: '1' # 发现漏洞则失败
           severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
@@ -136,6 +135,9 @@ jobs:
           # instance-id: ${{ vars.ACR_INSTANCE_ID }}
           username: "${{ secrets.REGISTRY_USERNAME }}"
           password: "${{ secrets.REGISTRY_PASSWORD }}"
+      
+      - name: Load image back to Docker
+        run: docker load -i /tmp/${{ matrix.directory }}.tar
 
       - name: push image
         # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
