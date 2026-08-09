@@ -102,6 +102,28 @@ jobs:
       #     role-session-expiration: 1800  # 会话过期时间
       #     role-session-name: 'github-action-session'  # 会话名称
       
+
+
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker Image (Locally)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.directory }}
+          file: ./${{ matrix.directory }}/Dockerfile
+          push: false
+          tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+          # outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          # input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
+          image-ref: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+          format: 'table'
+          exit-code: '1' # 发现漏洞则失败
+          severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
+      
       - name: Login to ACR
         uses: aliyun/acr-login@v1 
         with:
@@ -114,28 +136,6 @@ jobs:
           # instance-id: ${{ vars.ACR_INSTANCE_ID }}
           username: "${{ secrets.REGISTRY_USERNAME }}"
           password: "${{ secrets.REGISTRY_PASSWORD }}"
-
-      - name: Set Up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build Docker Image (Locally)
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.directory }}
-          file: ./${{ matrix.directory }}/Dockerfile
-          push: false
-          tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
-          # outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用
-      
-      - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          # input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
-          image-ref: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
-          format: 'table'
-          exit-code: '1' # 发现漏洞则失败
-          severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
-      
-
 
       - name: push image
         # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
