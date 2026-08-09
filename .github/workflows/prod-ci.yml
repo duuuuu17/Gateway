@@ -58,19 +58,15 @@ jobs:
         with:
           go-version: '1.26'
           working-directory: ${{ matrix.directory }}
-      
-      - name: Install dependencies (only for operator directory)
-        if: matrix.directory == 'operator'
-        working-directory: operator
-        run: |
-          echo "Current directory: $(pwd)"
-          make kustomize
-          make controller-gen
-          make install
 
       - name: Run Test
         working-directory: ${{ matrix.directory }}
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: |
+          if [ "${{ matrix.directory }}" = "operator" ]; then
+            make test
+          else
+            go test -v -race -coverprofile=coverage.out ./...
+          fi
 # === Job 3: build scan & push image 
   build-scan-push:
     name: Build & Trivy Scan
