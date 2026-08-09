@@ -18,7 +18,7 @@ jobs:
         directory: [operator, dataplane]
     steps:          
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -51,7 +51,7 @@ jobs:
       matrix:
         directory: [operator, dataplane]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -85,7 +85,7 @@ jobs:
       # IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set short git commit SHA
         run: |
           caculatedSha=$(git rev-parse --short ${{ github.sha }})
@@ -126,6 +126,16 @@ jobs:
         with:
           # 直接指定你的 ACR 注册表地址
           login-server: ${{ vars.ACR_NEWVERSION_REGISTRY }}
+          access-key-id: ${{ env.ALIBABACLOUD_ACCESS_KEY_ID }}
+          access-key-secret: ${{ env.ALIBABACLOUD_ACCESS_KEY_SECRET }}
+      # - name: Install Aliyun CLI
+      #   run: |
+      #     wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+      #     tar -xzf aliyun-cli-linux-latest-amd64.tgz
+      #     chmod +x aliyun
+      #     sudo mv aliyun /usr/local/bin/
+      #     aliyun version # 验证安装成功
+
       # - name: Login to ACR with temp token
       #   id: acr-token
       #   # reference document: https://www.alibabacloud.com/help/zh/acr/user-guide/configure-access-credentials
