@@ -80,9 +80,7 @@ jobs:
         directory: [operator, dataplane]
     env:
       ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
-      # CONTROLLER_IMAGE_NAME: ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}
-      # ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
-      # IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -112,29 +110,6 @@ jobs:
 
       - name: Load image back to Docker
         run: docker load -i /tmp/${{ matrix.directory }}.tar
-
-      # - name: Configure Alibaba Cloud credentials (OIDC)
-      #   uses: aliyun/configure-aliyun-credentials-action@v1
-      #   # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
-      #   with:
-      #     # 和 RAM OIDC IdP 的 Client ID 保持一致
-      #     role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
-      #     oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
-      #     audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
-      #     role-session-expiration: 1800  # 会话过期时间
-      #     role-session-name: 'github-action-session'  # 会话名称
-      # - name: Login to ACR
-      #   uses: aliyun/acr-login@v1 
-      #   with:
-      #     # 直接指定你的 ACR 注册表地址, 以及相关的STS Token的相关身份凭证参数
-      #     login-server: ${{ env.ACR_NEWVERSION_REGISTRY }}
-      #     # access-key-id: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_ID }}
-      #     # access-key-secret: ${{ env.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
-      #     # security-token: ${{ env.ALIBABA_CLOUD_SECURITY_TOKEN }}
-      #     # region-id: ${{ vars.ACR_REGION }}
-      #     # instance-id: ${{ vars.ACR_INSTANCE_ID }}
-      #     username: "${{ secrets.REGISTRY_USERNAME }}"
-      #     password: "${{ secrets.REGISTRY_PASSWORD }}"
 
       # docker login（用户名就是临时用户名，密码就是 AuthorizationToken）
       - name: Login to ACR
