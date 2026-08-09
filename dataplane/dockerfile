@@ -25,6 +25,12 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 
 FROM alpine:latest AS run
+WORKDIR /app
+COPY --from=builder /app/llm-router /app/llm-router
+
+ENV CONTROL_PLANE_ENDPOINT="localhost:50051" \
+    OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
+
 # create user and user group, use fix UID/GID 1001
 RUN addgroup -g 1001 appgroup && \
     adduser -u 1001 -G appgroup -D appuser
@@ -33,11 +39,9 @@ RUN chown -R appuser:appgroup /app
 # default startup user
 USER 1001
 
-WORKDIR /app
-COPY --from=builder /app/llm-router /app/llm-router
 
-ENV CONTROL_PLANE_ENDPOINT="localhost:50051" \
-    OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
+
+
 
 EXPOSE 8080 9090
 CMD ["./llm-router"]
