@@ -91,16 +91,7 @@ jobs:
           caculatedSha=$(git rev-parse --short ${{ github.sha }})
           echo "COMMIT_SHA_SHORT=$caculatedSha" >> $GITHUB_ENV
       
-      # - name: Configure Alibaba Cloud credentials (OIDC)
-      #   uses: aliyun/configure-aliyun-credentials-action@v1
-      #   # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
-      #   with:
-      #     # 和 RAM OIDC IdP 的 Client ID 保持一致
-      #     role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
-      #     oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
-      #     audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
-      #     role-session-expiration: 1800  # 会话过期时间
-      #     role-session-name: 'github-action-session'  # 会话名称
+
       
 
 
@@ -122,7 +113,22 @@ jobs:
           format: 'table'
           exit-code: '1' # 发现漏洞则失败
           severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
-      
+
+      - name: Load image back to Docker
+        run: docker load -i /tmp/${{ matrix.directory }}.tar
+
+
+      - name: Configure Alibaba Cloud credentials (OIDC)
+        uses: aliyun/configure-aliyun-credentials-action@v1
+        # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
+        with:
+          # 和 RAM OIDC IdP 的 Client ID 保持一致
+          role-to-assume: ${{ vars.ALIYUN_ROLE_NAME }} # RAM Role
+          oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
+          audience: ${{ vars.ALIYUN_STS_AUDIENCE }}
+          role-session-expiration: 1800  # 会话过期时间
+          role-session-name: 'github-action-session'  # 会话名称
+
       - name: Login to ACR
         uses: aliyun/acr-login@v1 
         with:
@@ -136,9 +142,6 @@ jobs:
           username: "${{ secrets.REGISTRY_USERNAME }}"
           password: "${{ secrets.REGISTRY_PASSWORD }}"
       
-      - name: Load image back to Docker
-        run: docker load -i /tmp/${{ matrix.directory }}.tar
-
       - name: push image
         # 注意docker build的格式: -t <tag> -f <dockerfilePath> .<BuildContext>
           # docker build -t ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }} -f ./${{ matrix.directory }}/Dockerfile  ./${{ matrix.directory }}
