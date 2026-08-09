@@ -100,7 +100,6 @@ jobs:
           file: ./${{ matrix.directory }}/Dockerfile
           push: false
           tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
-
           outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用,dest=/tmp/${{ matrix.directory }}.tar
       
       - name: Run Trivy Vulnerability Scanner
@@ -156,4 +155,5 @@ jobs:
 
       - name: push image
         run: |
+          docker build -t ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }} ./${{ matrix.directory }}/Dockerfile 
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
