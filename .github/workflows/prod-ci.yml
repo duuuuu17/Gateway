@@ -23,7 +23,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
           working-directory: ${{ matrix.directory }}
           
       - name: golangci-lint
@@ -56,7 +56,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.4'
           working-directory: ${{ matrix.directory }}
 
       - name: Run Test
@@ -79,11 +79,14 @@ jobs:
       ACR_REGISTRY: registry.${{ vars.ACR_REGION }}.aliyuncs.com 
       # CONTROLLER_IMAGE_NAME: ${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}
       # ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
-      IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ vars.TEST_IMAGE_NAME }}:${{ github.sha }}
+      # IMAGE: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+      - name: Set short git commit SHA
+        run: |
+          caculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "COMMIT_SHA_SHORT=$caculatedSha" >> $GITHUB_ENV
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v3
         
@@ -93,13 +96,14 @@ jobs:
           context: ${{ matrix.directory }}
           file: ./${{ matrix.directory }}/Dockerfile
           push: false
-          tags: ${{ env.IMAGE }}
-          outputs: type=docker,dest=/tmp/test-go-app.tar # 导出镜像文件供Trivy使用,dest=/tmp/${{ matrix.directory }}.tar
+          tags: ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+
+          outputs: type=docker,dest=/tmp/${{ matrix.directory }}.tar # 导出镜像文件供Trivy使用,dest=/tmp/${{ matrix.directory }}.tar
       
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          input: /tmp/test-go-app.tar # 扫描刚才导出的镜像
+          input: /tmp/${{ matrix.directory }}.tar # 扫描刚才导出的镜像
           format: 'table'
           exit-code: '1' # 发现漏洞则失败
           severity: 'CRITICAL,HIGH' # 只关注高危和严重漏洞
@@ -141,4 +145,4 @@ jobs:
 
       - name: push image
         run: |
-          docker push "${{ env.IMAGE }}"
+          docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
