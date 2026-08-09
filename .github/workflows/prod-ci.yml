@@ -72,6 +72,9 @@ jobs:
     name: Build & Trivy Scan
     runs-on: ubuntu-latest
     needs: [lint, test] # 核心逻辑：需要 lint 和 test 都成功后才执行
+    permissions:
+      id-token: write   # 必须打开，才能请求 OIDC token
+      contents: read
     strategy:
       matrix:
         directory: [operator, dataplane]
@@ -112,9 +115,10 @@ jobs:
         uses: aliyun/configure-aliyun-credentials-action@v1
         # reference document: https://github.com/aliyun/configure-aliyun-credentials-action
         with:
+          # 和 RAM OIDC IdP 的 Client ID 保持一致
           role-to-assume: ${{ vars.ALIYUN_ROLE_ARN }} # RAM Role
           oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }} # PROVIDER OIDC
-          audience: 'sts.aliyuncs.com'   # 和 RAM OIDC IdP 的 Client ID 保持一致
+          audience: 'github-actions'   
 
       - name: Login to ACR with temp token
         id: acr-token
