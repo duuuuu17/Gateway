@@ -125,9 +125,12 @@ jobs:
         uses: aliyun/acr-login@v1 
         with:
           # 直接指定你的 ACR 注册表地址
-          login-server: ${{ vars.ACR_NEWVERSION_REGISTRY }}
+          login-server: ${{ env.ACR_REGISTRY }}
           access-key-id: ${{ env.ALIBABACLOUD_ACCESS_KEY_ID }}
           access-key-secret: ${{ env.ALIBABACLOUD_ACCESS_KEY_SECRET }}
+          security-token: ${{ env.ALIBABACLOUD_SECURITY_TOKEN }}
+          region-id: ${{ vars.ACR_REGION }}
+          instance-id: ${{ vars.ACR_INSTANCE_ID }}
       # - name: Install Aliyun CLI
       #   run: |
       #     wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
