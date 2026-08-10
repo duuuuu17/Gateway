@@ -10,6 +10,7 @@ control-plane:
     requests:
       cpu: 200m
       memory: 128Mi
+
 data-plane:
   replicaCount: 1
   image:
@@ -17,7 +18,7 @@ data-plane:
     tag: "472d171"
   controlPlane:
     # 依赖控制面 Service 的名称，实现联动
-    endpoint: "operator-controller-manager.{{ .Release.Namespace }}.svc:50051"
+    endpoint: "operator-controller-manager.{{ .Release.Namespace }}.svc.cluster.local:50051"
   otel:
     endpoint: "jaeger-collector.istio-system.svc.cluster.local:4317"
   resources:
@@ -27,6 +28,3 @@ data-plane:
     requests:
       cpu: 400m
       memory: 256Mi
-dataPlane:
-  image:
-    tag: b2c5264
