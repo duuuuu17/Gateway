@@ -2,7 +2,7 @@ control-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
-    tag: ""
+    tag: "dce0808"
   resources:
     limits:
       cpu: 500m
@@ -14,7 +14,7 @@ data-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane
-    tag: ""
+    tag: "dce0808"
   controlPlane:
     # 依赖控制面 Service 的名称，实现联动
     endpoint: "operator-controller-manager.{{ .Release.Namespace }}.svc:50051"
