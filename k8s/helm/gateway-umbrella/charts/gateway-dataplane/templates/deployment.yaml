@@ -46,8 +46,8 @@ spec:
             - name: http
               containerPort: {{ .Values.service.httpPort }}
               protocol: TCP
-            - name: http
-              containerPort: {{ .Values.service.httpPort }}
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
               protocol: TCP
             - name: http-health
               containerPort: 8082
