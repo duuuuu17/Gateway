@@ -21,8 +21,8 @@ controller:
       memory: 512Mi
 # 如果GPG Server始终连接不上, 且exec -it修改文件mode没办法，要么extraVolumeMount一个，要么禁用
 # 以下是禁用gpg
-configs:
-  params:
-    server.gpg.enabled: "false"
-    controller.gpg.enabled: "false"
+# configs:
+#   params:
+#     server.gpg.enabled: "false"
+#     controller.gpg.enabled: "false"
 # helm upgrade --install argocd argo/argo-cd --create-namespace -n argocd -f argo-cd-values.yaml
