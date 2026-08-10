@@ -2,7 +2,7 @@ gateway-control-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
-    tag: "472d171"
+    tag: "9d73fd6"
   resources:
     limits:
       cpu: 500m
@@ -10,12 +10,11 @@ gateway-control-plane:
     requests:
       cpu: 200m
       memory: 128Mi
-
 gateway-dataplane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane
-    tag: "472d171"
+    tag: "9d73fd6"
   controlPlane:
     # 依赖控制面 Service 的名称，实现联动
     endpoint: "operator-controller-manager.{{ .Release.Namespace }}.svc.cluster.local:50051"
