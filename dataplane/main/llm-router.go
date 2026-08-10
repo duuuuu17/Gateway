@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/duuuuu17/llm-router-operator/pkg/cmd"
 	"github.com/duuuuu17/llm-router-operator/pkg/config"
 	eventbus "github.com/duuuuu17/llm-router-operator/pkg/eventBus"
 	"github.com/duuuuu17/llm-router-operator/pkg/logs"
@@ -31,7 +30,7 @@ import (
 // const path = "./config.yaml"
 
 func main() {
-	var grpcServerEndpoint = getEnv("CONTROL_PLANE_ENDPOINT", "localhost:50051")
+	// var grpcServerEndpoint = getEnv("CONTROL_PLANE_ENDPOINT", "localhost:50051")
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
@@ -70,9 +69,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler.TraceMiddleware(excluder)(route.ServeHTTP))
 	apiServe := &http.Server{
-		Addr:        ":8080",
+		Addr:        ":8084",
 		Handler:     mux,
-		ReadTimeout: 30,
+		ReadTimeout: 30 * time.Second,
 	}
 	metricsMux := http.NewServeMux()
 	metricsMux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
@@ -87,18 +86,18 @@ func main() {
 	healthzApiServe := &http.Server{
 		Addr:        ":8082",
 		Handler:     readinessHealthzMux,
-		ReadTimeout: 5,
+		ReadTimeout: 5 * time.Second,
 	}
 	// Client与控制面的grpc server构建tcp连接
-	endpointSelector := config.NewSelectorRegistry()
+	// endpointSelector := config.NewSelectorRegistry()
 	// 创建的同时，自动调用处理循环函数
-	streamClientDep := &cmd.StreamClientDependencies{
-		Endpoint:         grpcServerEndpoint,
-		RouterCfg:        &RouterCfg,
-		SelectorRegistry: endpointSelector,
-		TenantCfg:        tenantCfg,
-	}
-	_ = cmd.NewStreamClient(ctx, streamClientDep)
+	// streamClientDep := &cmd.StreamClientDependencies{
+	// 	Endpoint:         grpcServerEndpoint,
+	// 	RouterCfg:        &RouterCfg,
+	// 	SelectorRegistry: endpointSelector,
+	// 	TenantCfg:        tenantCfg,
+	// }
+	// _ = cmd.NewStreamClient(ctx, streamClientDep)
 
 	// 子线程监听服务意外的错误没
 	apiErrors := make(chan error, 1)
