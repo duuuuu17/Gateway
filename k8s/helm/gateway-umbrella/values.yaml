@@ -1,20 +1,20 @@
 control-plane:
   replicaCount: 1
   image:
-    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/llm-router-controller
-    tag: latest
+    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
+    tag: a96d38d
   resources:
     limits:
         cpu: 500m
         memory: 128Mi
     requests:
-        cpu: 10m
-        memory: 64Mi
+        cpu: 200m
+        memory: 128Mi
 data-plane:
   replicaCount: 1
   image:
-    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator-dataplane
-    tag: latest
+    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane
+    tag: a96d38d
   controlPlane:
     # 依赖控制面 Service 的名称，实现联动
     endpoint: "operator-controller-manager.{{ .Release.Namespace }}.svc:50051"

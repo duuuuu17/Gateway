@@ -3,8 +3,8 @@ manager:
   replicas: 1
   
   image:
-    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/llm-router-controller
-    tag: latest
+    repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
+    tag: a96d38d
     pullPolicy: Always
 
   # Arguments

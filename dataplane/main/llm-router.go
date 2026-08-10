@@ -69,7 +69,6 @@ func main() {
 	excluder := handler.NewExcludedEndpoints("/healthz", "/readyz", "/metrics", "/debug/pprof", "/favicon.ico")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler.TraceMiddleware(excluder)(route.ServeHTTP))
-	// http.Handle("/", route)
 	apiServe := &http.Server{
 		Addr:        ":8080",
 		Handler:     mux,
@@ -86,7 +85,7 @@ func main() {
 	readinessHealthzMux.HandleFunc("/healthz", metrics.Healthz)
 	readinessHealthzMux.HandleFunc("/readyz", metrics.Readyz)
 	healthzApiServe := &http.Server{
-		Addr:        ":8082",
+		Addr:        ":8081",
 		Handler:     readinessHealthzMux,
 		ReadTimeout: 5,
 	}
@@ -127,7 +126,8 @@ func main() {
 		slog.Info("开始退出HTTP服务...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := errors.Join(apiServe.Shutdown(shutdownCtx), healthzApiServe.Shutdown(shutdownCtx), metricsApiServe.Shutdown(shutdownCtx)); err != nil {
+		if err := errors.Join(apiServe.Shutdown(shutdownCtx), healthzApiServe.Shutdown(shutdownCtx),
+			metricsApiServe.Shutdown(shutdownCtx)); err != nil {
 			slog.Error("HTTP服务退出失败, 强制关闭中", "Error: ", err)
 			os.Exit(1)
 		}

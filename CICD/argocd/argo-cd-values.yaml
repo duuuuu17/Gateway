@@ -1,0 +1,22 @@
+# argo-cd-values.yaml
+server:
+  service:
+    type: NodePort
+    nodePortHttps: 30443  # 方便宿主机访问
+
+# 开启 ApplicationSet 控制器（新版本默认开启，老版本需显式开启）
+applicationSet:
+  enabled: true
+
+# 资源限制（防止 Kind 被压垮）
+server:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+# helm upgrade --install argocd argo/argo-cd --create-namespace -n argocd -f argo-cd-values.yaml

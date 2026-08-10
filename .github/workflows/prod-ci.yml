@@ -123,3 +123,13 @@ jobs:
 
         run: |
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+      - name: Update Helm values.yaml with new image tag
+        run: |
+          # 安装 yq 命令
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+          # 修改 k8s/helm/values.yaml 中的镜像 tag (根据你的实际层级调整路径)
+          # 假设你的结构是 operator.image.tag 和 dataPlane.image.tag
+          yq -i ".control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/values.yaml
+          yq -i ".dataPlane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/values.yaml

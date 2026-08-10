@@ -10,5 +10,5 @@ func Healthz(w http.ResponseWriter, req *http.Request) {
 }
 func Readyz(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
-	w.Write([]byte("readyz")) //nolint
+	w.Write([]byte("ok")) //nolint
 }

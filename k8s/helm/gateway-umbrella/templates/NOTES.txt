@@ -1,6 +1,6 @@
   control-plane:
   kubectl get deploy -l "app.kubernetes.io/name=operator,app.kubernetes.io/instance={{ .Release.Name }}"
-  kubectl logs deploy/operator-controller-manager -n {{ .Release.Namespace }}"
+  kubectl logs deploy/operator-controller-manager -n {{ .Release.Namespace }}
   data-plane:
   kubectl get deploy -l "app.kubernetes.io/name=gateway-dataplane,app.kubernetes.io/instance={{ .Release.Name }}"
-  kubectl logs deploy/gateway-dataplane -n {{ .Release.Namespace }}"
+  kubectl logs deploy/{{ .Release.Name }}-gateway-dataplane -n {{ .Release.Namespace }}

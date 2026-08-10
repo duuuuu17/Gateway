@@ -1,0 +1,7 @@
+# argo-rollouts-values.yaml
+controller:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+# helm upgrade --install argo-rollouts argo/argo-rollouts -n argocd -f argo-rollouts-values.yaml
