@@ -11,17 +11,17 @@ spec:
             env: prod
             namespace: prod-llm-router
             uri: https://kubernetes.default.svc
-          - branch: dev
-            env: dev
-            namespace: dev-llm-router
-            uri: https://kubernetes.default.svc
+          # - branch: dev
+          #   env: dev
+          #   namespace: dev-llm-router
+          #   uri: https://kubernetes.default.svc
   template:
     metadata:
-      name: 'llm-gateway-{{.env}}'
+      name: 'llm-gateway-{{env}}'
     spec:
       project: default
       source:
-        repoURL: 'https://github.com/duuuuu17/Gateway.git'
+        repoURL: 'git@github.com:duuuuu17/Gateway.git'
         targetRevision: '{{branch}}'
         path: k8s/helm/gateway-umbrella
         helm:

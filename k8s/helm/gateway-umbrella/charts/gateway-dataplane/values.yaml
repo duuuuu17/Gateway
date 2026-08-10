@@ -81,13 +81,14 @@ service:
 livenessProbe:
   httpGet:
     path: /healthz
-    port: 8081
-  initialDelaySeconds: 15
+    port: 8082
+  initialDelaySeconds: 10
   periodSeconds: 20
+  failureThreshold: 3
 readinessProbe:
   httpGet:
     path: /readyz
-    port: 8081
+    port: 8082
   initialDelaySeconds: 5
   periodSeconds: 10
 

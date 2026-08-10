@@ -85,7 +85,7 @@ func main() {
 	readinessHealthzMux.HandleFunc("/healthz", metrics.Healthz)
 	readinessHealthzMux.HandleFunc("/readyz", metrics.Readyz)
 	healthzApiServe := &http.Server{
-		Addr:        ":8081",
+		Addr:        ":8082",
 		Handler:     readinessHealthzMux,
 		ReadTimeout: 5,
 	}
