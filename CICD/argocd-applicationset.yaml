@@ -19,6 +19,19 @@ spec:
     metadata:
       name: 'llm-gateway-{{env}}'
     spec:
+      #  忽略cert-manager资源的status字段，避免因为Argo CD配置的selfHeal自愈触发过快，
+      # 强制PATCH cert-manager资源，导致cert-manager Operator发现资源版本改变触发重试修改Status，进入死循环
+      ignoreDifferences:
+        - group: cert-manager.io
+          kind: Certificate
+          namespace: '{{namespace}}'
+          jsonPointers:
+            - /status
+        - group: cert-manager.io
+          kind: CertificateRequest
+          namespace: '{{namespace}}'
+          jsonPointers:
+            - /status
       project: default
       source:
         repoURL: 'git@github.com:duuuuu17/Gateway.git'
@@ -37,3 +50,5 @@ spec:
           selfHeal: true    # 如果有人手动改了集群资源，自动恢复成 Git 的状态
         syncOptions:
           - CreateNamespace=true
+          - SkipDryRunOnMissingResource=true # 建议加上，防止Webhook未就绪时DryRun报错
+# Note: ApplicationSet must install in the namespace argocd
