@@ -19,7 +19,7 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 controlPlane: # Note: must ensure the operator service.FQDN is correction!
-  endpoint: 'operator-controller-manager.{{ .Release.Namespace }}.svc.cluster.local:50051'  # 默认值
+  endpoint: operator-controller-manager.{{ .Release.Namespace }}.svc.cluster.local:50051  # 默认值
 otel:
   endpoint: "jaeger-collector.istio-system.svc.cluster.local:4317"
 # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
