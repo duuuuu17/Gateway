@@ -43,7 +43,7 @@ USER 1001
 
 
 
-EXPOSE 8080 9090 8082
+EXPOSE 8080 9090
 CMD ["./llm-router"]
 
 
