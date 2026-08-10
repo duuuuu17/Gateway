@@ -123,6 +123,7 @@ jobs:
 
         run: |
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
+      
       - name: Update Helm values.yaml with new image tag
         run: |
           # 安装 yq 命令
@@ -130,6 +131,14 @@ jobs:
           chmod +x /usr/local/bin/yq
 
           # 修改 k8s/helm/values.yaml 中的镜像 tag (根据你的实际层级调整路径)
-          # 假设你的结构是 operator.image.tag 和 dataPlane.image.tag
-          yq -i ".control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/values.yaml
-          yq -i ".dataPlane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/values.yaml
+          yq -i ".control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/gateway-umbrella/values.yaml
+          yq -i ".dataPlane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" k8s/helm/gateway-umbrella/values.yaml
+
+          # 配置Git
+          git config --global user.name "github-actions[bot]-repo-gateway"
+          git config --global user.email "duuuuu17@example.com"
+          
+          # 提交并推送
+          git add k8s/gateway-umbrella/helm/values.yaml
+          git commit -m "chore: update image tag to ${COMMIT_SHA_SHORT} [skip ci]"
+          git push
