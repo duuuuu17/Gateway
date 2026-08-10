@@ -10,25 +10,27 @@ spec:
           - branch: master
             env: prod
             namespace: prod-llm-router
+            uri: https://kubernetes.default.svc
           - branch: dev
             env: dev
             namespace: dev-llm-router
+            uri: https://kubernetes.default.svc
   template:
     metadata:
-      name: 'llm-gateway-{{ env }}'
+      name: 'llm-gateway-{{.env}}'
     spec:
       project: default
       source:
         repoURL: 'https://github.com/duuuuu17/Gateway.git'
-        targetRevision: {{ branch }}
+        targetRevision: {{branch}}
         path: k8s/helm/gateway-umbrella
         helm:
           # 如果需要在 ApplicationSet 层面覆盖命名空间等参数，可以在这里写
-          values: |
-            namespace: '{{ namespace }}'
+          valueFiles: 
+            - '{{env}}-values.yaml'
       destination:
-        server: 'https://kubernetes.default.svc'
-        namespace: '{{ namespace }}'
+        server: '{{uri}}'
+        namespace: '{{namespace}}'
       syncPolicy:
         automated:
           prune: true       # 如果在 Git 里删了资源，集群里也删
