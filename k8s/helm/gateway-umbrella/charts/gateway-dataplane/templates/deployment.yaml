@@ -46,8 +46,11 @@ spec:
             - name: http
               containerPort: {{ .Values.service.httpPort }}
               protocol: TCP
-            - name: metrics
-              containerPort: {{ .Values.service.metricsPort }}
+            - name: http
+              containerPort: {{ .Values.service.httpPort }}
+              protocol: TCP
+            - name: http-health
+              containerPort: 8082
               protocol: TCP
           env:
           # 注入控制面 Operator 的 Service 地址 (Operator 暴露了名为 llm-router-operator 的 Service)

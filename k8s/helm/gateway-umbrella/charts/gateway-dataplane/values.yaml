@@ -51,15 +51,15 @@ serviceAnnotations:
 podLabels: {}
   # app: gateway-dataplane
 terminationGracePeriodSeconds: 30
-lifecycle:
-  preStop:
-    exec:
-      command:
-        [
-          "bin/sh",
-          "-c",
-          "sleep 3s"
-        ]
+# lifecycle:
+#   preStop:
+#     exec:
+#       command:
+#         [
+#           "bin/sh",
+#           "-c",
+#           "sleep 3s"
+#         ]
 podSecurityContext:
   fsGroup: 2000 # 避免PVC写入权限问题
   runAsNonRoot: true
@@ -84,14 +84,14 @@ livenessProbe:
   httpGet:
     path: /healthz
     port: 8082
-  initialDelaySeconds: 15
+  initialDelaySeconds: 20
   periodSeconds: 20
   failureThreshold: 3
 readinessProbe:
   httpGet:
     path: /readyz
     port: 8082
-  initialDelaySeconds: 5
+  initialDelaySeconds: 15
   periodSeconds: 10
 
 
