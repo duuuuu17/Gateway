@@ -1,4 +1,4 @@
-control-plane:
+gateway-control-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
@@ -11,7 +11,7 @@ control-plane:
       cpu: 200m
       memory: 128Mi
 
-data-plane:
+gateway-dataplane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane

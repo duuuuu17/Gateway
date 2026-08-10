@@ -152,8 +152,8 @@ jobs:
           fi
 
           # 修改 k8s/helm/values.yaml 中的镜像 tag (根据你的实际层级调整路径)
-          yq -i ".control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
-          yq -i ".data-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
+          yq -i ".gateway-control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
+          yq -i ".gateway-dataplane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
 
           # 配置Git
           git config --global user.name "github-actions[bot]"
