@@ -22,7 +22,7 @@ spec:
       project: default
       source:
         repoURL: 'https://github.com/duuuuu17/Gateway.git'
-        targetRevision: {{branch}}
+        targetRevision: '{{branch}}'
         path: k8s/helm/gateway-umbrella
         helm:
           # 如果需要在 ApplicationSet 层面覆盖命名空间等参数，可以在这里写

@@ -125,7 +125,7 @@ jobs:
           docker push ${{ vars.ACR_NEWVERSION_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ matrix.directory }}:${{ env.COMMIT_SHA_SHORT }}
 
   modify-image-tag-and-git-push:
-    name: Build & Trivy Scan
+    name: modify image tag and push
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -136,7 +136,7 @@ jobs:
       - name: Set short git commit SHA
         run: |
           caculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "COMMIT_SHA_SHORT=$caculatedSha" >> $GITHUB_ENV
+          COMMIT_SHA_SHORT=$caculatedSha
       - name: Update Helm values.yaml with new image tag
         run: |
           # 安装 yq 命令
@@ -152,11 +152,11 @@ jobs:
           fi
 
           # 修改 k8s/helm/values.yaml 中的镜像 tag (根据你的实际层级调整路径)
-          yq -i ".control-plane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
-          yq -i ".dataPlane.image.tag = \"${{ env.COMMIT_SHA_SHORT }}\"" $VALUES_FILE
+          yq -i ".control-plane.image.tag = \"${{ COMMIT_SHA_SHORT }}\"" $VALUES_FILE
+          yq -i ".data-plane.image.tag = \"${{ COMMIT_SHA_SHORT }}\"" $VALUES_FILE
 
           # 配置Git
-          git config --global user.name "github-actions[bot]-repo-gateway"
+          git config --global user.name "github-actions[bot]"
           git config --global user.email "duuuuu17@example.com"
           
           # 提交并推送
