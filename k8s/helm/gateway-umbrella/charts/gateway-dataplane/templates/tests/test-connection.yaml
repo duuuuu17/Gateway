@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "gateway-dataplane.fullname" . }}:8081/healthz']
+      args: ['{{ include "gateway-dataplane.fullname" . }}:8082/healthz']
   restartPolicy: Never

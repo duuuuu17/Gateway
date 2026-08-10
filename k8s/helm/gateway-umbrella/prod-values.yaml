@@ -16,8 +16,9 @@ gateway-dataplane:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane
     tag: "9d73fd6"
   controlPlane:
-    ## 依赖控制面 Service 的名称，实现联动
-    endpoint: operator-controller-manager.{{ .Release.Namespace }}.svc.cluster.local:50051
+    # 依赖控制面 Service 的名称，实现联动
+    controlPlaneServiceName: "operator-controller-manager"
+    controlPlanePort: "50051"
   otel:
     endpoint: "jaeger-collector.istio-system.svc.cluster.local:4317"
   resources:

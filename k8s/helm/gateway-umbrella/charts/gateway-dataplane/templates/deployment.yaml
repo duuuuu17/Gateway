@@ -52,7 +52,7 @@ spec:
           env:
           # 注入控制面 Operator 的 Service 地址 (Operator 暴露了名为 llm-router-operator 的 Service)
           - name: CONTROL_PLANE_ENDPOINT
-            value: {{ .Values.controlPlane.endpoint }}
+            value: "{{ .Values.controlPlane.controlPlaneServiceName }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.controlPlanePort }}"
           # 注入 Jaeger Collector 的 OTLP gRPC 地址
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: {{ .Values.otel.endpoint }}
