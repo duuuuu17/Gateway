@@ -2,14 +2,14 @@ control-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
-    tag: a96d38d
+    tag: b2c5264
   resources:
     limits:
-        cpu: 500m
-        memory: 128Mi
+      cpu: 500m
+      memory: 128Mi
     requests:
-        cpu: 200m
-        memory: 128Mi
+      cpu: 200m
+      memory: 128Mi
 data-plane:
   replicaCount: 1
   image:
@@ -22,8 +22,11 @@ data-plane:
     endpoint: "jaeger-collector.istio-system.svc.cluster.local:4317"
   resources:
     limits:
-        cpu: 800m
-        memory: 512Mi
+      cpu: 800m
+      memory: 512Mi
     requests:
-        cpu: 400m
-        memory: 256Mi
+      cpu: 400m
+      memory: 256Mi
+dataPlane:
+  image:
+    tag: b2c5264
