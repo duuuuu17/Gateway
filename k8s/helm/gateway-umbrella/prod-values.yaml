@@ -2,7 +2,7 @@ gateway-control-plane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/operator
-    tag: "9d73fd6"
+    tag: "e36656a"
   resources:
     limits:
       cpu: 500m
@@ -14,7 +14,7 @@ gateway-dataplane:
   replicaCount: 1
   image:
     repository: crpi-jok0hxci4hqtytw8.cn-shenzhen.personal.cr.aliyuncs.com/djy-repository/dataplane
-    tag: "9d73fd6"
+    tag: "e36656a"
   controlPlane:
     # 依赖控制面 Service 的名称，实现联动
     controlPlaneServiceName: "operator-controller-manager"
