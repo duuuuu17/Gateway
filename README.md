@@ -146,7 +146,7 @@ flowchart LR
 Configuration reconciliation
 
 config_controller watches Config CR events and performs:
-```bash
+```text
 Config CR
    │
    └── Reconcile
@@ -228,7 +228,7 @@ flowchart LR
     XDS -->|"Hot Configuration Update"| Runtime
 ```
 #### Request processing
-```bashe
+```text
 Client Request
       │
       ▼
@@ -312,7 +312,7 @@ flowchart LR
 Kubernetes resources can generate frequent events.
 
 Without aggregation:
-```bash
+```text
 CR Event
    ↓
 Reconcile
@@ -332,7 +332,7 @@ The `Debouncer` collects events during a configured `Ticker Period` and deduplic
 #### xDS snapshot model
 
 The xDS server separates mutable configuration state from the data used during an individual push cycle:
-```bash
+```text
 xdsController
       │
       │ Snapshot
@@ -350,7 +350,8 @@ This allows each push loop to operate against a stable configuration snapshot.
 #### Client state and recovery
 
 The xDS server maintains:
-```mermaid
+
+```text
 ClientState
 ├── ClientID
 ├── Stream
@@ -401,7 +402,7 @@ flowchart LR
 The application exposes business-level and application-level metrics for Prometheus scraping.
 
 Examples include:
-```bash
+```text
 Request count
 Request latency
 Backend routing
@@ -411,7 +412,7 @@ Streaming requests
 #### Logging
 
 Application logs are written to stdout using Go slog.
-```bash
+```text
 LLM Gateway
     │
     └── stdout
@@ -426,7 +427,7 @@ This keeps the application container-native and delegates log collection and shi
 #### Distributed Tracing
 
 OpenTelemetry tracing starts at the beginning of request processing.
-```bash
+```text
 Request
    │
    ▼
